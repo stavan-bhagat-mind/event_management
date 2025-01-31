@@ -1,32 +1,43 @@
 const Models = require('../../../models/index');
+const FileService = require('../../../services/file.service');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
-// User Registration
 async function register(req, res) {
   try {
-    if (!req.files || req.files.length === 0) {
-      return res.status(STATUS_BAD_REQUEST).json({ message: MSG_BAD_REQUEST });
-    }
     const { first_name, last_name, email, password, user_type } = req.body;
-    const profile_picture_url = req.files.map((file) => file.path);
+
+    // Validate required fields
+    if (!first_name || !last_name || !email || !password || !user_type) {
+      return res.status(400).json({
+        success: false,
+        message: 'All fields are required',
+      });
+    }
 
     // Check for existing user
-    const existingUser = await Models.User.findOne({
-      $or: [{ username }, { email }],
-    });
-
+    const existingUser = await Models.User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({
+      return res.status(409).json({
         success: false,
         message: 'User already exists',
       });
     }
 
+    // Process file upload
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Profile picture is required',
+      });
+    }
+
+    // Upload to MinIO
+    const fileData = await FileService.uploadFile(req.file);
+
     // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create user
     const user = await Models.User.create({
@@ -35,30 +46,41 @@ async function register(req, res) {
       email,
       user_type,
       password: hashedPassword,
-      profile_picture_url,
+      profile_picture_url: fileData.url,
+      metadata: {
+        object_name: fileData.objectName,
+        bucket: process.env.MINIO_BUCKET,
+      },
     });
 
-    // Generate JWT token
+    // Generate JWT
     const token = jwt.sign(
-      { id: user._id, username: user.username },
+      { userId: user._id, userType: user.user_type },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    res.status(201).json({
+    // Remove sensitive data from response
+    const userResponse = {
+      id: user._id,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      email: user.email,
+      user_type: user.user_type,
+      profile_picture_url: user.profile_picture_url,
+      created_at: user.createdAt,
+    };
+
+    return res.status(201).json({
       success: true,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        profile_picture_url: user.profile_picture_url,
-      },
+      data: userResponse,
       token,
     });
   } catch (error) {
-    res.status(500).json({
+      console.error(`Registration error: ${error.message}`);
+    return res.status(500).json({
       success: false,
-      message: error.message,
+      message: 'Internal server error',
     });
   }
 }

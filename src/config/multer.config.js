@@ -1,44 +1,39 @@
-// config/multer.js
 const multer = require('multer');
 const path = require('path');
 
-// Storage configuration
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(
-      null,
-      file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname)
-    );
-  },
-});
+// Memory storage for direct streaming to MinIO
+const storage = multer.memoryStorage();
 
-// File filter
+// File validation
 const fileFilter = (req, file, cb) => {
-  // Accept images only
-  if (!file.originalname.match(/\.(jpg|JPG|jpeg|JPEG|png|PNG|gif|GIF)$/)) {
-    req.fileValidationError = 'Only image files are allowed!';
-    return cb(new Error('Only image files are allowed!'), false);
+  const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif'];
+  const maxSize = 5 * 1024 * 1024; // 5MB
+
+  if (!allowedMimeTypes.includes(file.mimetype)) {
+    return cb(
+      new Error('Invalid file type. Only JPEG, PNG, and GIF are allowed.'),
+      false
+    );
   }
+
+  if (file.size > maxSize) {
+    return cb(new Error('File size exceeds 5MB limit'), false);
+  }
+
   cb(null, true);
 };
 
-// Multer config
+// Configure Multer instance
 const upload = multer({
   storage: storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-  },
   fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
 });
 
-// Export different upload configurations
 module.exports = {
-  single: (fieldName) => upload.single(fieldName),
-  array: (fieldName, maxCount) => upload.array(fieldName, maxCount),
-  fields: (fields) => upload.fields(fields),
-  none: () => upload.none(),
+  singleUpload: (fieldName) => upload.single(fieldName),
+  multipleUpload: (fieldName, maxCount) => upload.array(fieldName, maxCount),
+  fieldsUpload: (fields) => upload.fields(fields),
 };

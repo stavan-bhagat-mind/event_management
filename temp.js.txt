@@ -1,0 +1,88 @@
+const Minio = require('minio');
+const fs = require('fs');
+const path = require('path'); // Import the path module
+require('dotenv').config();
+
+// Instantiate the MinIO client with the object store service
+const minioClient = new Minio.Client({
+  endPoint: process.env.MINIO_ENDPOINT,
+  port: 443,
+  useSSL: true,
+  accessKey: process.env.MINIO_ACCESS_KEY,
+  secretKey: process.env.MINIO_SECRET_KEY,
+});
+
+// console.log('MinIO client created', minioClient);
+// File to upload
+const sourceFile = path.join(__dirname, 'temp.txt');
+
+// Check if the file exists
+if (!fs.existsSync(sourceFile)) {
+  console.error('File does not exist:', sourceFile);
+  process.exit(1); // Exit the process with an error code
+}
+
+// Destination bucket
+// const bucket = 'js-test-bucket';
+const bucket = 'booking-management';
+
+const destinationObject = 'my-test-file.txt';
+
+// Function to list buckets
+// async function listBuckets() {
+//   try {
+//     console.log('list----------');
+//     const buckets = await minioClient.listBuckets();
+//     console.log('Buckets:', buckets);
+//     buckets.forEach((buck) => {
+//       console.log(buck.name); // Log the name of each bucket
+//     });
+//   } catch (err) {
+//     console.error('Error occurred:', err);
+//   }
+// }
+
+// // Call the function to list buckets
+// listBuckets();
+
+// Create an async function to handle the upload
+async function uploadFile() {
+  try {
+    // Check if the bucket exists
+    const exists = await minioClient.bucketExists(bucket);
+    if (exists) {
+      console.log('Bucket ' + bucket + ' exists.');
+    } else {
+      await minioClient.makeBucket(bucket, 'us-east-1');
+      console.log('Bucket ' + bucket + ' created in "us-east-1".');
+    }
+
+    // Set the object metadata
+    var metaData = {
+      'Content-Type': 'text/plain', // Change this if you're uploading an image
+      'X-Amz-Meta-Testing': 1234,
+      example: 5678,
+    };
+
+    // Upload the file with fPutObject
+    await minioClient.fPutObject(
+      bucket,
+      destinationObject,
+      sourceFile,
+      metaData
+    );
+    console.log(
+      'File ' +
+        sourceFile +
+        ' uploaded as object ' +
+        destinationObject +
+        ' in bucket ' +
+        bucket
+    );
+  } catch (err) {
+    console.error('Error occurred:', err);
+  }
+}
+
+// Call the async function
+uploadFile();

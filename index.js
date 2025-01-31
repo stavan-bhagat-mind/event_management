@@ -1,43 +1,39 @@
 const express = require('express');
-// const http = require("http");
-const cors = require('cors');
 const database = require('./src/config/database');
 const indexRoutes = require('./src/routers/index.router');
+const { initializeMinIO } = require('./src/services/file.service');
+
+// Initialize database and MinIO
 database();
-require('dotenv').config();
+initializeMinIO().catch((error) => {
+  console.error('Failed to initialize MinIO:', error);
+  process.exit(1);
+});
 
 const app = express();
 const port = process.env.PORT || 8080;
-// const server = http.createServer(app);
 
-// For parsing the express payloads
+// Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS permission
+// CORS
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Headers', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   next();
 });
-// app.use(
-//   cors({
-//     origin: corsOrigins,
-//   })
-// );
 
+// Routes
 app.use('/event-management', indexRoutes);
-app.use('/', (req, res) => {
-  res.json('demo api');
-});
+
+// 404 Handler
 app.use('*', (req, res) => {
   res.status(404).json({ message: 'Resource not found' });
 });
 
+// Start server
 app.listen(port, () => {
-  console.log(`Server is running on port http://localhost:${port}/event_management`);
-  // startSocket(server);
+  console.log(`Server running on http://localhost:${port}/event_management`);
 });
-
-// module.exports = { app, server, getIo };
