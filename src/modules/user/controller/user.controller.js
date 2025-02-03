@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const {
   validateUserRegister,
   validateLogin,
+  validateUserUpdate,
 } = require('../../../modules/user/validations/user.validations');
 const { USER } = require('../utils/user.constants');
 const { USER_MESSAGE } = require('../utils/user.messages');
@@ -14,14 +15,26 @@ const {
   COMMON_MSG,
   MSG_BAD_REQUEST,
   MSG_ACCESS_TOKEN_REFRESHED,
+  VERIFICATION_EMAIL_SENT,
+  MSG_VERIFY_EMAIL,
+  MSG_RESET_PASSWORD_EMAIL_SENT,
 } = require('../../../utils/common/messages');
 const {
   STATUS_INTERNAL_SERVER_ERROR,
   STATUS_STATUS_CONFLICT,
   STATUS_BAD_REQUEST,
+  STATUS_NOT_FOUND,
+  STATUS_SUCCESS,
+  STATUS_FORBIDDEN,
 } = require('../../../utils/common/constants');
+const {
+  sendVerificationEmail,
+  sendResetPasswordEmail,
+} = require('../../../config/email.config');
+const { generateOTP } = require('../../../helpers/helper');
 
-async function register(req, res) {
+// Register User
+async function registerHandler(req, res) {
   try {
     // validate user input
     const { success, value } = validateUserRegister(req.body, res);
@@ -40,20 +53,13 @@ async function register(req, res) {
       });
     }
 
-    // // Process file upload
-    // if (req.file) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: 'Profile picture is required',
-    //   });
-    // }
-
-    // // Upload to MinIO
-    // const fileData = await FileService.uploadFile(req.file);
-
     // Hash password
     const hashedPassword = await bcrypt.hash(value.password, 10);
-
+    const emailVerificationToken = jwt.sign(
+      { email: value.email },
+      process.env.VERIFY_SECRET,
+      { expiresIn: process.env.VERIFY_EXPIRY_TIME }
+    );
     // Create user
     const user = await Models.User.create({
       first_name: value.first_name,
@@ -61,13 +67,9 @@ async function register(req, res) {
       email: value.email,
       user_type: value.user_type,
       password: hashedPassword,
-      // profile_picture_url: fileData.url,
-      // metadata: {
-      //   object_name: fileData.objectName,
-      //   bucket: process.env.MINIO_BUCKET,
-      // },
     });
 
+    await sendVerificationEmail(user.email, emailVerificationToken);
     // Remove sensitive data from response
     const userResponse = {
       id: user._id,
@@ -75,13 +77,14 @@ async function register(req, res) {
       last_name: user.last_name,
       email: user.email,
       user_type: user.user_type,
-      // profile_picture_url: user.profile_picture_url,
+      is_email_verified: user.is_email_verified,
       created_at: user.createdAt,
     };
 
     return res.status(201).json({
       success: true,
       data: userResponse,
+      message: MSG_VERIFY_EMAIL,
     });
   } catch (error) {
     console.error(`Registration error: ${error.message}`);
@@ -93,7 +96,7 @@ async function register(req, res) {
 }
 
 // User Login
-async function login(req, res) {
+async function loginHandler(req, res) {
   try {
     const { success, value } = validateLogin(req.body, res);
     if (!success) {
@@ -104,11 +107,16 @@ async function login(req, res) {
     }
     // Find user
     const user = await Models.User.findOne({ email: value.email });
-
     if (!user) {
       return res.status(STATUS_NOT_FOUND).json({
         success: false,
         message: COMMON_MSG.NOT_FOUND.replace('##', USER),
+      });
+    }
+    if (!user.is_email_verified) {
+      return res.status(STATUS_FORBIDDEN).json({
+        success: false,
+        message: MSG_VERIFY_EMAIL,
       });
     }
 
@@ -155,7 +163,8 @@ async function login(req, res) {
   }
 }
 
-async function refreshToken(req, res) {
+// Generate new access token
+async function refreshTokenHandler(req, res) {
   const refreshToken = req.headers['refresh-token'];
 
   try {
@@ -190,129 +199,254 @@ async function refreshToken(req, res) {
     }
   }
 }
-// Get User Profile
-async function getProfile(req, res) {
+
+// Get User Data
+async function getUserDataHandler(req, res) {
   try {
     const userId = req.userId;
-    const user = await Models.User.findById(req.user.id)
-      .select('id username email isOnline')
-      .populate({
-        path: 'groups',
-        select: 'name',
-        populate: {
-          path: 'groupMember',
-          select: 'role',
-        },
-      });
-
+    const user = await Models.User.findById(userId);
     if (!user) {
       return res.status(404).json({
         success: false,
         message: 'User not found',
       });
     }
-
     res.json({
       success: true,
       user,
     });
   } catch (error) {
-    res.status(500).json({
+    console.error(`Get user data error: ${error.message}`);
+    return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: error.message,
+      message: MSG_INTERNAL_SERVER_ERROR,
     });
   }
 }
 
-// // Update User Profile
-// async function updateProfile(req, res) {
-//   try {
-//     const { username, email } = req.body;
+// verify User
+async function userVerificationHandler(req, res) {
+  try {
+    const { token } = req.params;
+    const decoded = jwt.verify(token, process.env.VERIFY_SECRET);
+    const user = await Models.User.findOne({ email: decoded.email });
+    if (!user) {
+      return res
+        .status(STATUS_NOT_FOUND)
+        .json({ message: COMMON_MSG.NOT_FOUND.replace('##', USER) });
+    }
+    if (user.is_email_verified) {
+      return res
+        .status(STATUS_BAD_REQUEST)
+        .json({ message: COMMON_MSG.VERIFIED_SUCCESS.replace('##', 'email') });
+    }
+    user.is_email_verified = true;
+    await user.save();
+    return res
+      .status(STATUS_SUCCESS)
+      .json({ message: COMMON_MSG.VERIFIED_SUCCESS.replace('##', 'email') });
+  } catch (error) {
+    console.error('Verification error:', error);
+    return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MSG_INTERNAL_SERVER_ERROR,
+    });
+  }
+}
 
-//     const user = await User.findByIdAndUpdate(
-//       req.user.id,
-//       {
-//         $set: {
-//           username: username || user.username,
-//           email: email || user.email,
-//         },
-//       },
-//       { new: true }
-//     ).select('id username email');
+// Resend Verification Email
+async function resendVerificationEmail(req, res) {
+  try {
+    const { email } = req.body;
 
-//     if (!user) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'User not found',
-//       });
-//     }
+    // Find user by email
+    const user = await Models.User.findOne({ email });
 
-//     res.json({
-//       success: true,
-//       user,
-//     });
-//   } catch (error) {
-//     res.status(500).json({
-//       success: false,
-//       message: error.message,
-//     });
-//   }
-// }
+    if (!user) {
+      return res
+        .status(STATUS_NOT_FOUND)
+        .json({ message: COMMON_MSG.NOT_FOUND.replace('##', USER) });
+    }
 
-// // Logout
-// async function logout(req, res) {
-//   try {
-//     const user = await User.findByIdAndUpdate(
-//       req.user.id,
-//       { isOnline: false },
-//       { new: true }
-//     );
+    if (user.is_email_verified) {
+      return res
+        .status(STATUS_BAD_REQUEST)
+        .json({ message: COMMON_MSG.ALREADY_VERIFIED.replace('##', 'email') });
+    }
 
-//     if (!user) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'User not found',
-//       });
-//     }
+    const emailVerificationToken = jwt.sign(
+      { email },
+      process.env.VERIFY_SECRET,
+      { expiresIn: process.env.VERIFY_EXPIRY_TIME }
+    );
+    // Send new verification email
+    await sendVerificationEmail(email, emailVerificationToken);
 
-//     res.json({
-//       success: true,
-//       message: 'Logged out successfully',
-//     });
-//   } catch (error) {
-//     res.status(500).json({
-//       success: false,
-//       message: error.message,
-//     });
-//   }
-// }
+    res.status(STATUS_SUCCESS).json({ message: VERIFICATION_EMAIL_SENT });
+  } catch (error) {
+    console.error('Resend verification email error:', error);
+    return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MSG_INTERNAL_SERVER_ERROR,
+    });
+  }
+}
 
-// // Get All Users
-// async function getAllUsers(req, res) {
-//   try {
-//     const users = await User.find(
-//       { _id: { $ne: req.user.id } },
-//       'id username isOnline'
-//     );
+// Update User Profile
+async function updateUserProfileHandler(req, res) {
+  try {
+    // validate user input
+    const userId = req.userId;
+    const { success, value } = validateUserUpdate(req.body, res);
+    if (!success) {
+      return res.status(STATUS_BAD_REQUEST).json({
+        success: false,
+        message: value.message,
+      });
+    }
 
-//     res.json({
-//       success: true,
-//       users,
-//     });
-//   } catch (error) {
-//     res.status(500).json({
-//       success: false,
-//       message: error.message,
-//     });
-//   }
-// }
+    const user = await Models.User.findById(userId);
+    if (!user) {
+      return res
+        .status(STATUS_NOT_FOUND)
+        .json({ message: COMMON_MSG.NOT_FOUND.replace('##', USER) });
+    }
+
+    const updateFields = {
+      first_name: value.first_name,
+      last_name: value.last_name,
+      contact_number: value.contact_number,
+    };
+
+    if (value.password) {
+      updateFields.password = await bcrypt.hash(value.password, 10);
+    }
+
+    // Process file upload
+    if (req.file) {
+      // Upload to MinIO
+      const fileData = await FileService.uploadFile(req.file);
+      updateFields.profile_picture_url = fileData.url;
+      updateFields.metadata = {
+        object_name: fileData.objectName,
+        bucket: process.env.MINIO_BUCKET,
+      };
+    }
+
+    const updatedUser = await Models.User.findByIdAndUpdate(
+      userId,
+      updateFields,
+      {
+        new: true,
+      }
+    );
+
+    res.status(STATUS_SUCCESS).json({
+      message: COMMON_MSG.UPDATED_SUCCESS.replace('##', USER),
+      updatedUser,
+    });
+  } catch (error) {
+    return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MSG_INTERNAL_SERVER_ERROR,
+    });
+  }
+}
+
+// Forgot Password
+async function forgotPasswordHandler(req, res) {
+  try {
+    const { email } = req.body;
+    const user = await Models.User.findOne({ email });
+
+    if (!user) {
+      return res
+        .status(STATUS_NOT_FOUND)
+        .json({ message: COMMON_MSG.NOT_FOUND.replace('##', USER) });
+    }
+
+    const resetPasswordToken = generateOTP();
+
+    user.reset_password_token = resetPasswordToken;
+
+    await user.save();
+
+    // Send reset password email
+    await sendResetPasswordEmail(
+      user.email,
+      resetPasswordToken,
+      user.first_name
+    );
+
+    res.status(STATUS_SUCCESS).json({
+      message: MSG_RESET_PASSWORD_EMAIL_SENT,
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MSG_INTERNAL_SERVER_ERROR,
+    });
+  }
+}
+
+// Reset Password
+async function verifyAndResetPasswordHandler(req, res) {
+  try {
+    // const { email, otp, newPassword } = req.body;
+    const { value, success } = validateResetPassword(req.body, res);
+    if (!success) {
+      return res.status(STATUS_BAD_REQUEST).json({
+        success: false,
+        message: value.message,
+      });
+    }
+
+    // Find user and verify OTP
+    const user = await Models.User.findOne({
+      email: value.email,
+      reset_password_token: value.otp,
+      reset_password_expiry: { $gt: new Date() }, // Check if token hasn't expired
+    });
+
+    if (!user) {
+      return res.status(STATUS_BAD_REQUEST).json({
+        success: false,
+        message: 'Invalid or expired reset token',
+      });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(value.Password, 10);
+
+    // Update user's password and clear reset token fields
+    user.password = hashedPassword;
+    user.reset_password_token = null;
+    user.reset_password_expiry = null;
+
+    await user.save();
+
+    res.status(STATUS_SUCCESS).json({
+      success: true,
+      message: PASSWORD_RESET_SUCCESS,
+    });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MSG_INTERNAL_SERVER_ERROR,
+    });
+  }
+}
 
 module.exports = {
-  register,
-  login,
-  refreshToken,
-  getProfile,
-  //   updateProfile,
-  //   logout,
-  //   getAllUsers,
+  registerHandler,
+  loginHandler,
+  refreshTokenHandler,
+  getUserDataHandler,
+  userVerificationHandler,
+  resendVerificationEmail,
+  updateUserProfileHandler,
+  forgotPasswordHandler,
+  verifyAndResetPasswordHandler,
 };

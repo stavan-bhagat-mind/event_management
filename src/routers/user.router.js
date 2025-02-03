@@ -1,24 +1,31 @@
 const userRouter = require('express').Router();
 const {
-  register,
-  login,
-  //   logout,
-  refreshToken,
-  getProfile,
+  registerHandler,
+  loginHandler,
+  refreshTokenHandler,
+  userVerificationHandler,
+  getUserDataHandler,
+  resendVerificationEmail,
+  updateUserProfileHandler,
+  forgotPasswordHandler,
+  verifyAndResetPasswordHandler
 } = require('../modules/user/controller/user.controller');
 const authentication = require('../middlewares/authentication.middleware');
-// const {
-//   uploadFile,
-//   downloadFile,
-//   upload,
-// } = require('../controllers/fileController');
-// const { uploadFile } = require('../modules/user/controller/upload.controller');
 const { singleUpload } = require('../config/multer.config');
 
-userRouter.post('/register', singleUpload('file'), register);
-userRouter.post('/login', login);
-userRouter.get('/', authentication, getProfile);
-// userRouter.post('/logout', logout);
-userRouter.post('/refresh-token', refreshToken);
+userRouter.post('/register', registerHandler);
+userRouter.post('/login', loginHandler);
+userRouter.get('/get-user', authentication, getUserDataHandler);
+userRouter.patch(
+  '/update-user',
+  authentication,
+  singleUpload('file'),
+  updateUserProfileHandler
+);
+userRouter.get('/verify/:token', userVerificationHandler);
+userRouter.post('/resend/verify', resendVerificationEmail);
+userRouter.get('/refresh-token', refreshTokenHandler);
+userRouter.post('/forgot-password', forgotPasswordHandler);
+userRouter.post('/reset-password', verifyAndResetPasswordHandler);
 
 module.exports = userRouter;

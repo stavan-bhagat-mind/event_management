@@ -4,6 +4,7 @@ module.exports = {
     CREATED_SUCCESS: '## created successfully.',
     UPDATED_SUCCESS: '## updated successfully.',
     DELETED_SUCCESS: '## deleted successfully.',
+    VERIFIED_SUCCESS: '## verified successfully.',
     CLONE_SUCCESS: '## clone successfully.',
     READ_SUCCESS: '## mark as read successfully.',
     LIST_NOT_FOUND: '## list not found.',
@@ -11,7 +12,22 @@ module.exports = {
     NOT_FOUND: '## not found.',
     ALREADY_EXISTS: '## already exists.',
     STATUS_UPDATED_SUCCESS: '## status updated successfully.',
+    ALREADY_VERIFIED: '## Already verified.',
+    INVALID: 'Invalid ##.',
+    NOT_VERIFIED: '## not verified.',
   },
+  // EMAIL
+  EMAIL: {
+    SUBJECTS: {
+      VERIFY_EMAIL: 'Verify your email address',
+      RESET_PASSWORD: 'Reset your password',
+    },
+    MESSAGES: {
+      VERIFY_EMAIL: 'Click the button below to verify your email address.',
+      RESET_PASSWORD: 'Click the button below to reset your password.',
+    },
+  },
+  VERIFICATION_EMAIL_SENT: 'Verification email sent successfully.',
   SOMETHING_WENT_WRONG: 'Something went wrong.',
   UNAUTHORIZED_USER: 'Unauthorized user.',
   INVALID_TOKEN: 'Invalid token.',
@@ -24,6 +40,10 @@ module.exports = {
   MSG_ACCESS_TOKEN_REFRESHED: 'Access token refreshed successfully.',
   MSG_REFRESH_TOKEN_EXPIRED: 'Refresh token has expired.',
   MSG_INVALID_REFRESH_TOKEN: 'Invalid refresh token.',
+  // email-Messages
+  MSG_VERIFY_EMAIL: 'Please verify your email address.',
+  MSG_RESET_PASSWORD_EMAIL_SENT: 'Reset password email sent successfully.',
+  
   // http-Messages
   MSG_SUCCESS: 'Operation completed successfully.',
   MSG_CREATED: 'Resource created successfully.',

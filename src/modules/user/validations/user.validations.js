@@ -4,7 +4,6 @@ const { BAD_REQUEST } = require('../../../utils/common/messages');
 const { STATUS_BAD_REQUEST } = require('../../../utils/common/constants');
 
 const validateUserRegister = (data, res) => {
-  s;
   const userValidationSchema = Joi.object({
     first_name: Joi.string().min(3).max(30).required(),
     last_name: Joi.string().min(3).max(30).required(),
@@ -39,7 +38,44 @@ const validateLogin = (data, res) => {
   };
 };
 
+const validateUserUpdate = (data, res) => {
+  const userValidationSchema = Joi.object({
+    first_name: Joi.string().min(3).max(30).required(),
+    last_name: Joi.string().min(3).max(30).required(),
+    // email: Joi.string().email().required(),
+    password: Joi.string().min(6).required(),
+    // user_type: Joi.string()
+    //   .valid(...ROLE)
+    //   .required(),
+    contact_number: Joi.string()
+      .regex(/^[0-9]{10}$/)
+      .messages({ 'string.pattern.base': `Phone number must have 10 digits.` })
+      .optional(),
+  });
+  const { error, value } = userValidationSchema.validate(data);
+  return {
+    success: error ? false : true,
+    value: error ? error : value,
+  };
+};
+
+const validateResetPassword = (data, res) => {
+  const resetPasswordValidationSchema = Joi.object({
+    email: Joi.string().email().required(),
+    otp: Joi.string().required(),
+    password: Joi.string().min(6).required(),
+    confirm_password: Joi.string().valid(Joi.ref('password')).required(),
+  });
+  const { error, value } = resetPasswordValidationSchema.validate(data);
+  return {
+    success: error ? false : true,
+    value: error ? error : value,
+  };
+};
+
 module.exports = {
   validateUserRegister,
   validateLogin,
+  validateUserUpdate,
+  validateResetPassword,
 };
