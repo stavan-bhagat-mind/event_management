@@ -1,11 +1,13 @@
 const Models = require('../../../models/index');
 const FileService = require('../../../services/file.service');
 const bcrypt = require('bcrypt');
+const moment = require('moment');
 const jwt = require('jsonwebtoken');
 const {
   validateUserRegister,
   validateLogin,
   validateUserUpdate,
+  validateResetPassword,
 } = require('../../../modules/user/validations/user.validations');
 const { USER } = require('../utils/user.constants');
 const { USER_MESSAGE } = require('../utils/user.messages');
@@ -14,6 +16,7 @@ const {
   MSG_INTERNAL_SERVER_ERROR,
   COMMON_MSG,
   MSG_BAD_REQUEST,
+  PASSWORD_RESET_SUCCESS,
   MSG_ACCESS_TOKEN_REFRESHED,
   VERIFICATION_EMAIL_SENT,
   MSG_VERIFY_EMAIL,
@@ -364,11 +367,12 @@ async function forgotPasswordHandler(req, res) {
         .status(STATUS_NOT_FOUND)
         .json({ message: COMMON_MSG.NOT_FOUND.replace('##', USER) });
     }
-
+    // generate OTP
     const resetPasswordToken = generateOTP();
-
+    // Set expiry time
+    const resetTokenExpiry = moment().add(30, 'minutes').toDate();
     user.reset_password_token = resetPasswordToken;
-
+    user.reset_password_expiry = resetTokenExpiry;
     await user.save();
 
     // Send reset password email
@@ -393,7 +397,6 @@ async function forgotPasswordHandler(req, res) {
 // Reset Password
 async function verifyAndResetPasswordHandler(req, res) {
   try {
-    // const { email, otp, newPassword } = req.body;
     const { value, success } = validateResetPassword(req.body, res);
     if (!success) {
       return res.status(STATUS_BAD_REQUEST).json({
@@ -412,12 +415,12 @@ async function verifyAndResetPasswordHandler(req, res) {
     if (!user) {
       return res.status(STATUS_BAD_REQUEST).json({
         success: false,
-        message: 'Invalid or expired reset token',
+        message: 'Invalid or expired OTP',
       });
     }
 
     // Hash new password
-    const hashedPassword = await bcrypt.hash(value.Password, 10);
+    const hashedPassword = await bcrypt.hash(value.password, 10);
 
     // Update user's password and clear reset token fields
     user.password = hashedPassword;

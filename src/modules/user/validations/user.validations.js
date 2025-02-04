@@ -64,7 +64,12 @@ const validateResetPassword = (data, res) => {
     email: Joi.string().email().required(),
     otp: Joi.string().required(),
     password: Joi.string().min(6).required(),
-    confirm_password: Joi.string().valid(Joi.ref('password')).required(),
+    confirm_password: Joi.string()
+      .valid(Joi.ref('password'))
+      .messages({
+        'incorrect password': `password and confirm password is not same.`,
+      })
+      .required(),
   });
   const { error, value } = resetPasswordValidationSchema.validate(data);
   return {

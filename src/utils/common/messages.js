@@ -29,6 +29,7 @@ module.exports = {
   },
   VERIFICATION_EMAIL_SENT: 'Verification email sent successfully.',
   SOMETHING_WENT_WRONG: 'Something went wrong.',
+  PASSWORD_RESET_SUCCESS: 'password reset successfully',
   UNAUTHORIZED_USER: 'Unauthorized user.',
   INVALID_TOKEN: 'Invalid token.',
   INTERNAL_SERVER_ERROR: 'Internal server error.',
@@ -43,7 +44,7 @@ module.exports = {
   // email-Messages
   MSG_VERIFY_EMAIL: 'Please verify your email address.',
   MSG_RESET_PASSWORD_EMAIL_SENT: 'Reset password email sent successfully.',
-  
+
   // http-Messages
   MSG_SUCCESS: 'Operation completed successfully.',
   MSG_CREATED: 'Resource created successfully.',
