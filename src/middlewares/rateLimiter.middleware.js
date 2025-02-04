@@ -10,5 +10,5 @@ const ResetRateLimiter = rateLimit({
 });
 
 module.exports = {
-    ResetRateLimiter,
+  ResetRateLimiter,
 };

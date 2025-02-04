@@ -14,8 +14,7 @@ const transporter = nodemailer.createTransport({
 
 const sendVerificationEmail = async (email, token) => {
   try {
-    const baseURL = process.env.BASEURL;
-    const verificationUrl = `${baseURL}/event-management/user/verify/${token}`;
+    const verificationUrl = `${process.env.BASEURL}/event-management/user/verify/${token}`;
     const appName = APP.NAME;
     // Render the EJS template
     const emailTemplatePath = path.resolve(
@@ -43,14 +42,10 @@ const sendVerificationEmail = async (email, token) => {
 
 const sendResetPasswordEmail = async (email, resetToken, userName) => {
   try {
-    // const baseURL = process.env.BASEURL;
-    // const resetPasswordUrl = `${baseURL}/event-management/user/reset-password/${token}`;
     const appName = APP.NAME;
-    // const logoUrl = path.resolve(
-    //   __dirname,
-    //   '../../src/public/images/eventify.jpeg'
-    // );
-    const logoUrl = 'https://i.ibb.co/v424L8f4/eventify.jpg';
+    // const logoUrl = 'https://i.ibb.co/v424L8f4/eventify.jpg';
+    const logoUrl = 'https://i.ibb.co/jkPfpH0m/eventify-icon-filled-256.png';
+
     // Render the EJS template
     const emailTemplatePath = path.resolve(
       __dirname,

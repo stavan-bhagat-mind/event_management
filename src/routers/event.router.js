@@ -1,26 +1,27 @@
 const eventRouter = require('express').Router();
-// const {
-//   //   createEvent,
-//   //   getEvent,
-//   //   getEvents,
-//   //   updateEvent,
-//   //   deleteEvent,
-// } = require('../modules/event/controller/event.controller');
+const {
+  createEventHandler,
+  //   getEvent,
+  //   getEvents,
+  //   updateEventHandler,
+  // getUserCreatedEventsHandler
+  // getPublishEventsHandler
+  //   deleteEventHandler,
+} = require('../modules/events/controller/events.controller');
 const authentication = require('../middlewares/authentication.middleware');
-// const upload = require('../middlewares/upload.middleware');
+const { multipleUpload } = require('../config/multer.config');
 
-// eventRouter.post(
-//   '/create',
-//   authentication,
-//   upload.single('image'),
-//   createEvent
-// );
-eventRouter.get('/:id', (req, res) => {
-  res.send('GET /event/:id');
-});
+eventRouter.post(
+  '/create',
+  authentication,
+  multipleUpload('images', 5),
+  createEventHandler
+); 
 
-// eventRouter.get('/', getEvents);
-// eventRouter.put('/:id', authentication, upload.single('image'), updateEvent);
-// eventRouter.delete('/:id', authentication, deleteEvent);
+// eventRouter.get('my-events',getUserCreatedEventsHandler
+// });
+// eventRouter.get('/public', getPublishEventsHandler);
+// eventRouter.put('/:id', authentication, upload.single('image'), updateEventHandler);
+// eventRouter.delete('/:id', authentication, deleteEventHandler);
 
 module.exports = eventRouter;

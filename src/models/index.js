@@ -1,7 +1,7 @@
 const User = require('./user.model');
-// const Event = require('./event.model');
+const Event = require('./event.model');
 
 module.exports = {
   User,
-  //   Event,
+  Event,
 };
