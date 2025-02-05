@@ -1,15 +1,12 @@
 const Models = require('../../../models/index');
 const FileService = require('../../../services/file.service');
-const jwt = require('jsonwebtoken');
 const {
   validateEventData,
 } = require('../../../modules/events/validations/event.validations');
-const { USER } = require('../../user/utils/user.constants');
 require('dotenv').config();
 const {
   MSG_INTERNAL_SERVER_ERROR,
   COMMON_MSG,
-  MSG_BAD_REQUEST,
   INACTIVE_USER,
   MSG_NO_CHANGES_MADE,
 } = require('../../../utils/common/messages');
@@ -17,11 +14,9 @@ const { ROLE } = require('../../../utils/common/constants');
 const {
   CATEGORY,
   STATUS_INTERNAL_SERVER_ERROR,
-  STATUS_STATUS_CONFLICT,
   STATUS_BAD_REQUEST,
   STATUS_NOT_FOUND,
   STATUS_SUCCESS,
-  STATUS_FORBIDDEN,
 } = require('../../../utils/common/constants');
 
 // Create Event
@@ -224,6 +219,25 @@ async function getUserCreatedEventsHandler(req, res) {
   }
 }
 
+// Get Event Details
+async function getEventDetailsHandler(req, res) {
+  try {
+    const events = await Models.Event.find({ _id: req.params.id });
+
+    return res.status(STATUS_SUCCESS).json({
+      success: true,
+      data: events,
+      message: COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Event'),
+    });
+  } catch (error) {
+    console.error(`getEventDetailsHandler error: ${error.message}`);
+    return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MSG_INTERNAL_SERVER_ERROR,
+    });
+  }
+}
+
 // Get Published Events
 async function getPublishedEventsHandler(req, res) {
   try {
@@ -240,25 +254,6 @@ async function getPublishedEventsHandler(req, res) {
     });
   } catch (error) {
     console.error(`getPublishEventsHandler error: ${error.message}`);
-    return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: MSG_INTERNAL_SERVER_ERROR,
-    });
-  }
-}
-
-// Get Event Details
-async function getEventDetailsHandler(req, res) {
-  try {
-    const events = await Models.Event.find({ _id: req.params.id });
-
-    return res.status(STATUS_SUCCESS).json({
-      success: true,
-      data: events,
-      message: COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Event'),
-    });
-  } catch (error) {
-    console.error(`getEventDetailsHandler error: ${error.message}`);
     return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
       success: false,
       message: MSG_INTERNAL_SERVER_ERROR,
