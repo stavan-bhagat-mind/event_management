@@ -3,10 +3,11 @@ const {
   createEventHandler,
   //   getEvent,
   //   getEvents,
-  //   updateEventHandler,
-  // getUserCreatedEventsHandler
-  // getPublishEventsHandler
-  //   deleteEventHandler,
+  updateEventHandler,
+  getUserCreatedEventsHandler,
+  getPublishedEventsHandler,
+  deleteEventHandler,
+  getEventDetailsHandler,
 } = require('../modules/events/controller/events.controller');
 const authentication = require('../middlewares/authentication.middleware');
 const { multipleUpload } = require('../config/multer.config');
@@ -16,12 +17,16 @@ eventRouter.post(
   authentication,
   multipleUpload('images', 5),
   createEventHandler
-); 
-
-// eventRouter.get('my-events',getUserCreatedEventsHandler
-// });
-// eventRouter.get('/public', getPublishEventsHandler);
-// eventRouter.put('/:id', authentication, upload.single('image'), updateEventHandler);
-// eventRouter.delete('/:id', authentication, deleteEventHandler);
+);
+eventRouter.patch(
+  '/:id',
+  authentication,
+  multipleUpload('image', 5),
+  updateEventHandler
+);
+eventRouter.get('/my-events', authentication, getUserCreatedEventsHandler);
+eventRouter.get('/:id', getEventDetailsHandler);
+eventRouter.get('/upcoming-public', getPublishedEventsHandler);
+eventRouter.delete('/:id', authentication, deleteEventHandler);
 
 module.exports = eventRouter;

@@ -4,16 +4,74 @@ const { BAD_REQUEST } = require('../../../utils/common/messages');
 const { STATUS_BAD_REQUEST } = require('../../../utils/common/constants');
 
 const validateEventData = (data, res) => {
+  // const validationSchema = Joi.object({
+  //   title: Joi.string().required(),
+  //   description: Joi.string().optional(),
+  //   location: Joi.string().required(),
+  //   date: Joi.date().iso().required(),
+  //   start_time:Joi.string()
+  // .pattern(/^([01]\d|2[0-3]):([0-5]\d)$/, 'time')
+  // .required(),
+  //   end_time:Joi.string()
+  // .pattern(/^([01]\d|2[0-3]):([0-5]\d)$/, 'time')
+  // .required(),
+  //   seats: Joi.object({
+  //     total: Joi.number().integer().min(1).required()
+  //   }).required(),
+  //   price: Joi.number().greater(0).required(),
+  //   organizer: Joi.string().required(),
+  // });
   const validationSchema = Joi.object({
-    title: Joi.string().required(),
+    title: Joi.string().required().messages({
+      'any.required': 'Event title is required',
+    }),
     description: Joi.string().optional(),
-    location: Joi.string().required(),
-    date: Joi.date().iso().required(),
+    location: Joi.string().required().messages({
+      'any.required': 'Event location is required',
+    }),
+    date: Joi.string()
+      .pattern(/^\d{4}-\d{2}-\d{2}$/, 'date')
+      .required()
+      .messages({
+        'string.pattern.name': 'Date format must be YYYY-MM-DD',
+        'any.required': 'Event date is required',
+      }),
+    start_time: Joi.string()
+      .pattern(/^([01]\d|2[0-3]):([0-5]\d)$/, 'time')
+      .required()
+      .messages({
+        'string.pattern.name': 'Time format must be HH:MM in 24-hour format',
+        'any.required': 'Start time is required',
+      }),
+    end_time: Joi.string()
+      .pattern(/^([01]\d|2[0-3]):([0-5]\d)$/, 'time')
+      .required()
+      .messages({
+        'string.pattern.name': 'Time format must be HH:MM in 24-hour format',
+        'any.required': 'End time is required',
+      })
+      .custom((value, helpers) => {
+        const { start_time } = helpers.state.ancestors[0];
+        if (value <= start_time) {
+          return helpers.error('any.invalid');
+        }
+        return value;
+      })
+      .messages({
+        'any.invalid': 'End time must be after start time',
+      }),
     seats: Joi.object({
-      total: Joi.number().integer().min(1).required()
+      total: Joi.number().integer().min(1).required().messages({
+        'any.required': 'Total seats count is required',
+        'number.min': 'Minimum 1 seat required',
+      }),
+      booked: Joi.number().integer().min(0).default(0),
     }).required(),
-    price: Joi.number().greater(0).required(),
-    creator: Joi.string().required(),
+    price: Joi.number().greater(0).required().messages({
+      'any.required': 'Price is required',
+      'number.greater': 'Price cannot be negative',
+    }),
+    organizer: Joi.string().required(),
   });
   const { error, value } = validationSchema.validate(data);
   return {

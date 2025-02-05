@@ -5,6 +5,10 @@ module.exports = {
     NAME: 'EventifY',
     DESCRIPTION: 'Event Management System',
   },
+  CATEGORY: {
+    USER: 'User',
+    EVENT: 'Event',
+  },
   // http-Status-Codes
   STATUS_SUCCESS: 200,
   STATUS_CREATED: 201,

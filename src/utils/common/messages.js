@@ -55,4 +55,5 @@ module.exports = {
   MSG_ACCESS_TOKEN_MISSING: 'Access token is required.',
   MSG_TOKEN_EXPIRED: 'Token has expired',
   MSG_INVALID_ACCESS_TOKEN: 'Invalid access token',
+  MSG_NO_CHANGES_MADE: 'No changes were made to the request.',
 };

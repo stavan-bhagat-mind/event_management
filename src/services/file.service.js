@@ -14,12 +14,63 @@ const initializeMinIO = async () => {
 };
 
 // Upload a file to MinIO
-const uploadFile = async (file) => {
+// const uploadFile = async (file) => {
+//   try {
+//     const objectName = `${Date.now()}-${file.originalname}`;
+//     const metaData = {
+//       'Content-Type': file.mimetype,
+//       'Original-Name': file.originalname,
+//     };
+
+//     await minioClient.putObject(
+//       bucketName,
+//       objectName,
+//       file.buffer,
+//       file.size,
+//       metaData
+//     );
+
+//     return {
+//       url: `${process.env.MINIO_PUBLIC_URL}/${bucketName}/${objectName}`,
+//       objectName,
+//       size: file.size,
+//       mimetype: file.mimetype,
+//     };
+//   } catch (error) {
+//     console.error(`File upload error: ${error}`);
+//     throw new Error('Failed to upload file');
+//   }
+// };
+
+const generateFolderPath = (options) => {
+  const { category, subCategory } = options;
+
+  if (!category) {
+    throw new Error('Category is required');
+  }
+
+  let folderPath = `${category}`;
+  if (subCategory) {
+    folderPath += `/${subCategory}`;
+  }
+  return folderPath;
+};
+
+// Upload a file to MinIO
+const uploadFile = async (file, options = {}) => {
   try {
-    const objectName = `${Date.now()}-${file.originalname}`;
+    // Generate folder path
+    const folderPath = generateFolderPath(options);
+
+    // Create object name with folder structure
+    const objectName = `${folderPath}/${Date.now()}-${file.originalname.replace(/\s+/g, '-')}`;
+
     const metaData = {
       'Content-Type': file.mimetype,
       'Original-Name': file.originalname,
+      Category: options.category || '',
+      'Sub-Category': options.subCategory || '',
+      ID: options.id || '',
     };
 
     await minioClient.putObject(
@@ -35,6 +86,7 @@ const uploadFile = async (file) => {
       objectName,
       size: file.size,
       mimetype: file.mimetype,
+      path: folderPath,
     };
   } catch (error) {
     console.error(`File upload error: ${error}`);

@@ -23,6 +23,7 @@ const {
   MSG_RESET_PASSWORD_EMAIL_SENT,
 } = require('../../../utils/common/messages');
 const {
+  CATEGORY,
   STATUS_INTERNAL_SERVER_ERROR,
   STATUS_STATUS_CONFLICT,
   STATUS_BAD_REQUEST,
@@ -328,7 +329,10 @@ async function updateUserProfileHandler(req, res) {
     // Process file upload
     if (req.file) {
       // Upload to MinIO
-      const fileData = await FileService.uploadFile(req.file);
+      const fileData = await FileService.uploadFile(req.file, {
+        category: CATEGORY.USER,
+        subCategory: userId,
+      });
       updateFields.profile_picture_url = fileData.url;
       updateFields.metadata = {
         object_name: fileData.objectName,
