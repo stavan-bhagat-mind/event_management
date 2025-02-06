@@ -1,17 +1,10 @@
 const bookingRouter = require('express').Router();
 const {
-  createEventHandler,
-  //   getEvent,
-  //   getEvents,
-  updateEventHandler,
-  getUserCreatedEventsHandler,
-  getPublishedEventsHandler,
-  deleteEventHandler,
-  getEventDetailsHandler,
-} = require('../modules/events/controller/events.controller');
-const {
   createBookingHandler,
-  //   getBookingDetailsHandler,
+  getBookingDetailsHandler,
+  paymentIntentCreationHandler,
+  handleIAPPaymentHandler,
+  handleStripeWebhookHandler,
   //   cancelBookingHandler,
   //   getUserBookingsHandler
 } = require('../modules/booking/controller/booking.controller');
@@ -24,7 +17,14 @@ bookingRouter.post('/create', authentication, createBookingHandler);
 //   multipleUpload('image', 5),
 //   updateEventHandler
 // );
-// bookingRouter.get('/:id', getBookingDetailsHandler);
+bookingRouter.get('/:id', getBookingDetailsHandler);
+bookingRouter.post('/create-payment-intent', paymentIntentCreationHandler);
+bookingRouter.post('/create-iapp-payment', handleIAPPaymentHandler);
+bookingRouter.post(
+  '/webhook',
+  express.raw({ type: 'application/json' }),
+  handleStripeWebhookHandler
+);
 // bookingRouter.get('/bookingDetails', getUserBookingsHandler);
 
 // bookingRouter.get('/my-events', authentication, getUserCreatedEventsHandler);

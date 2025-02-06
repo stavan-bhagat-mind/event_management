@@ -1,39 +1,41 @@
 const mongoose = require('mongoose');
 
-const bookingSchema = new mongoose.Schema({
-  event: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Event',
-    required: [true, 'Event ID is required'],
+const bookingSchema = new mongoose.Schema(
+  {
+    event: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Event',
+      required: true,
+    },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    seatsBooked: {
+      type: Number,
+      required: true,
+    },
+    totalPrice: {
+      type: Number,
+      required: true,
+    },
+    status: {
+      type: String,
+      enum: ['PENDING', 'CONFIRMED', 'CANCELLED'],
+      default: 'PENDING',
+    },
+    qrCode: String,
+    paymentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Payment',
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
   },
-  user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: [true, 'User ID is required'],
-  },
-  seats_booked: {
-    type: Number,
-    required: [true, 'Number of seats booked is required'],
-    min: [1, 'Minimum 1 seat must be booked'],
-  },
-  total_price: {
-    type: Number,
-    required: [true, 'Total price is required'],
-    min: [0, 'Total price cannot be negative'],
-  },
-  booking_date: {
-    type: Date,
-    default: Date.now,
-  },
-  status: {
-    type: String,
-    enum: ['pending', 'confirmed', 'cancelled'],
-    default: 'pending',
-  },
-  qr_code: {
-    type: String,
-    unique: true,
-  },
-});
+  { timestamps: true }
+);
 
 module.exports = mongoose.model('Booking', bookingSchema);

@@ -1,7 +1,7 @@
 const Models = require('../../../models/index');
 require('dotenv').config();
-// const { generateQRCode } = require('../utils/qrCodeGenerator');
-const { COMMON_MSG } = require('../constants/messages');
+const { generateQRCode } = require('../../../helpers/helper');
+const { COMMON_MSG } = require('../../../utils/common/messages');
 
 const {
   MSG_INTERNAL_SERVER_ERROR,
@@ -21,7 +21,11 @@ const {
 // Create a new booking
 const createBookingHandler = async (req, res) => {
   try {
-    const { eventId, seatsBooked } = req.body;
+    const { eventId, seatsBooked, totalAmount, paymentData } = req.body;
+    const paymentInfo = {
+      ...paymentData,
+      created: new Date(paymentData.created * 1000),
+    };
     const userId = req.userId;
 
     // Validate input
@@ -50,13 +54,13 @@ const createBookingHandler = async (req, res) => {
     }
 
     // Calculate total price
-    const totalPrice = event.price * seatsBooked;
+    // const totalPrice = event.price * seatsBooked;
 
     // Generate QR code
-    const qrCode = await generateQRCode(`${eventId}-${userId}-${Date.now()}`);
+    // const qrCode = await generateQRCode(`${eventId}-${userId}-${Date.now()}`);
 
     // Create booking
-    const booking = new Booking({
+    const booking = new Models.Booking({
       event: eventId,
       user: userId,
       seatsBooked,
@@ -74,17 +78,45 @@ const createBookingHandler = async (req, res) => {
     res.status(STATUS_SUCCESS).json({
       success: true,
       data: booking,
-      message: 'Booking created successfully',
+      message: COMMON_MSG.CREATED_SUCCESS.replace('##', 'Booking'),
     });
   } catch (error) {
     console.error(`createBooking error: ${error.message}`);
     res.status(STATUS_INTERNAL_SERVER_ERROR).json({
       success: false,
-      message: 'Internal server error',
+      message: MSG_INTERNAL_SERVER_ERROR,
+    });
+  }
+};
+
+// Get Booking Details
+const getBookingDetailsHandler = async (req, res) => {
+  try {
+    const booking = await Models.Booking.findById(req.params.id)
+      .populate('event', 'title date location')
+      .populate('user', 'email name');
+
+    if (!booking) {
+      return res.status(STATUS_NOT_FOUND).json({
+        success: false,
+        message: COMMON_MSG.NOT_FOUND.replace('##', 'Booking'),
+      });
+    }
+
+    res.status(STATUS_SUCCESS).json({
+      success: true,
+      data: booking,
+    });
+  } catch (error) {
+    console.error(`getBookingDetails error: ${error.message}`);
+    res.status(STATUS_INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MSG_INTERNAL_SERVER_ERROR,
     });
   }
 };
 
 module.exports = {
   createBookingHandler,
+  getBookingDetailsHandler,
 };
