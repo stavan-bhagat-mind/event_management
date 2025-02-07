@@ -5,11 +5,11 @@ const { STATUS_BAD_REQUEST } = require('../../../utils/common/constants');
 
 const validateUserRegister = (data, res) => {
   const userValidationSchema = Joi.object({
-    first_name: Joi.string().min(3).max(30).required(),
-    last_name: Joi.string().min(3).max(30).required(),
+    firstName: Joi.string().min(3).max(30).required(),
+    lastName: Joi.string().min(3).max(30).required(),
     email: Joi.string().email().required(),
     password: Joi.string().min(6).required(),
-    user_type: Joi.string()
+    userType: Joi.string()
       .valid(...ROLE)
       .required(),
   });
@@ -40,14 +40,14 @@ const validateLogin = (data, res) => {
 
 const validateUserUpdate = (data, res) => {
   const userValidationSchema = Joi.object({
-    first_name: Joi.string().min(3).max(30).required(),
-    last_name: Joi.string().min(3).max(30).required(),
+    firstName: Joi.string().min(3).max(30).required(),
+    lastName: Joi.string().min(3).max(30).required(),
     // email: Joi.string().email().required(),
     password: Joi.string().min(6).required(),
-    // user_type: Joi.string()
+    // userType: Joi.string()
     //   .valid(...ROLE)
     //   .required(),
-    contact_number: Joi.string()
+    contactNumber: Joi.string()
       .regex(/^[0-9]{10}$/)
       .messages({ 'string.pattern.base': `Phone number must have 10 digits.` })
       .optional(),
@@ -64,7 +64,7 @@ const validateResetPassword = (data, res) => {
     email: Joi.string().email().required(),
     otp: Joi.string().required(),
     password: Joi.string().min(6).required(),
-    confirm_password: Joi.string()
+    confirmPassword: Joi.string()
       .valid(Joi.ref('password'))
       .messages({
         'incorrect password': `password and confirm password is not same.`,

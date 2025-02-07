@@ -3,12 +3,12 @@ const Schema = mongoose.Schema;
 
 const userSchema = new Schema(
   {
-    first_name: {
+    firstName: {
       type: String,
       required: true,
       maxlength: 50,
     },
-    last_name: {
+    lastName: {
       type: String,
       required: true,
       maxlength: 50,
@@ -23,7 +23,7 @@ const userSchema = new Schema(
         'Please fill a valid email address',
       ],
     },
-    is_subscribed: {
+    isSubscribed: {
       type: Boolean,
       default: false,
     },
@@ -31,34 +31,34 @@ const userSchema = new Schema(
       type: String,
       required: true,
     },
-    reset_password_token: {
+    resetPasswordToken: {
       type: String,
     },
-    reset_password_expiry: {
+    resetPasswordExpiry: {
       type: Date,
     },
-    account_status: {
+    accountStatus: {
       type: String,
       enum: ['active', 'inactive'],
       default: 'active',
     },
-    user_type: {
+    userType: {
       type: String,
       enum: ['attendee', 'event_manager'],
       required: true,
     },
-    contact_number: {
+    contactNumber: {
       type: String,
       match: [/^[0-9]{10}$/, 'Please enter a valid 10-digit phone number'],
     },
-    is_email_verified: {
+    isEmailVerified: {
       type: Boolean,
       default: false,
     },
-    profile_picture_url: {
+    profilePictureUrl: {
       type: String,
     },
-    deleted_at: {
+    deletedAt: {
       type: Date,
       default: null,
     },

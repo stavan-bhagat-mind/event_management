@@ -66,10 +66,10 @@ async function registerHandler(req, res) {
     );
     // Create user
     const user = await Models.User.create({
-      first_name: value.first_name,
-      last_name: value.last_name,
+      firstName: value.firstName,
+      lastName: value.lastName,
       email: value.email,
-      user_type: value.user_type,
+      userType: value.userType,
       password: hashedPassword,
     });
 
@@ -77,12 +77,12 @@ async function registerHandler(req, res) {
     // Remove sensitive data from response
     const userResponse = {
       id: user._id,
-      first_name: user.first_name,
-      last_name: user.last_name,
+      firstName: user.firstName,
+      lastName: user.lastName,
       email: user.email,
-      user_type: user.user_type,
-      is_email_verified: user.is_email_verified,
-      created_at: user.createdAt,
+      userType: user.userType,
+      isEmailVerified: user.isEmailVerified,
+      createdAt: user.createdAt,
     };
 
     return res.status(201).json({
@@ -117,7 +117,7 @@ async function loginHandler(req, res) {
         message: COMMON_MSG.NOT_FOUND.replace('##', USER),
       });
     }
-    if (!user.is_email_verified) {
+    if (!user.isEmailVerified) {
       return res.status(STATUS_FORBIDDEN).json({
         success: false,
         message: MSG_VERIFY_EMAIL,
@@ -136,7 +136,7 @@ async function loginHandler(req, res) {
 
     // Generate JWT token
     const token = jwt.sign(
-      { id: user._id, username: user.username },
+      { id: user._id, username: user.email },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRY_TIME }
     );
@@ -151,9 +151,9 @@ async function loginHandler(req, res) {
       success: true,
       user: {
         id: user._id,
-        name: user.first_name + ' ' + user.last_name,
+        name: user.firstName + ' ' + user.lastName,
         email: user.email,
-        user_type: user.user_type,
+        userType: user.userType,
       },
       token,
       refreshToken,
@@ -239,12 +239,12 @@ async function userVerificationHandler(req, res) {
         .status(STATUS_NOT_FOUND)
         .json({ message: COMMON_MSG.NOT_FOUND.replace('##', USER) });
     }
-    if (user.is_email_verified) {
+    if (user.isEmailVerified) {
       return res
         .status(STATUS_BAD_REQUEST)
         .json({ message: COMMON_MSG.VERIFIED_SUCCESS.replace('##', 'email') });
     }
-    user.is_email_verified = true;
+    user.isEmailVerified = true;
     await user.save();
     return res
       .status(STATUS_SUCCESS)
@@ -272,7 +272,7 @@ async function resendVerificationEmail(req, res) {
         .json({ message: COMMON_MSG.NOT_FOUND.replace('##', USER) });
     }
 
-    if (user.is_email_verified) {
+    if (user.isEmailVerified) {
       return res
         .status(STATUS_BAD_REQUEST)
         .json({ message: COMMON_MSG.ALREADY_VERIFIED.replace('##', 'email') });
@@ -317,9 +317,9 @@ async function updateUserProfileHandler(req, res) {
     }
 
     const updateFields = {
-      first_name: value.first_name,
-      last_name: value.last_name,
-      contact_number: value.contact_number,
+      firstName: value.firstName,
+      lastName: value.lastName,
+      contactNumber: value.contactNumber,
     };
 
     if (value.password) {
@@ -375,15 +375,15 @@ async function forgotPasswordHandler(req, res) {
     const resetPasswordToken = generateOTP();
     // Set expiry time
     const resetTokenExpiry = moment().add(30, 'minutes').toDate();
-    user.reset_password_token = resetPasswordToken;
-    user.reset_password_expiry = resetTokenExpiry;
+    user.resetPasswordToken = resetPasswordToken;
+    user.resetPasswordExpiry = resetTokenExpiry;
     await user.save();
 
     // Send reset password email
     await sendResetPasswordEmail(
       user.email,
       resetPasswordToken,
-      user.first_name
+      user.firstName
     );
 
     res.status(STATUS_SUCCESS).json({
@@ -412,8 +412,8 @@ async function verifyAndResetPasswordHandler(req, res) {
     // Find user and verify OTP
     const user = await Models.User.findOne({
       email: value.email,
-      reset_password_token: value.otp,
-      reset_password_expiry: { $gt: new Date() }, // Check if token hasn't expired
+      resetPasswordToken: value.otp,
+      resetPasswordExpiry: { $gt: new Date() }, // Check if token hasn't expired
     });
 
     if (!user) {
@@ -428,8 +428,8 @@ async function verifyAndResetPasswordHandler(req, res) {
 
     // Update user's password and clear reset token fields
     user.password = hashedPassword;
-    user.reset_password_token = null;
-    user.reset_password_expiry = null;
+    user.resetPasswordToken = null;
+    user.resetPasswordExpiry = null;
 
     await user.save();
 

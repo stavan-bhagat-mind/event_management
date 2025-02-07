@@ -9,10 +9,10 @@ const validateEventData = (data, res) => {
   //   description: Joi.string().optional(),
   //   location: Joi.string().required(),
   //   date: Joi.date().iso().required(),
-  //   start_time:Joi.string()
+  //   startTime:Joi.string()
   // .pattern(/^([01]\d|2[0-3]):([0-5]\d)$/, 'time')
   // .required(),
-  //   end_time:Joi.string()
+  //   endTime:Joi.string()
   // .pattern(/^([01]\d|2[0-3]):([0-5]\d)$/, 'time')
   // .required(),
   //   seats: Joi.object({
@@ -36,14 +36,14 @@ const validateEventData = (data, res) => {
         'string.pattern.name': 'Date format must be YYYY-MM-DD',
         'any.required': 'Event date is required',
       }),
-    start_time: Joi.string()
+    startTime: Joi.string()
       .pattern(/^([01]\d|2[0-3]):([0-5]\d)$/, 'time')
       .required()
       .messages({
         'string.pattern.name': 'Time format must be HH:MM in 24-hour format',
         'any.required': 'Start time is required',
       }),
-    end_time: Joi.string()
+    endTime: Joi.string()
       .pattern(/^([01]\d|2[0-3]):([0-5]\d)$/, 'time')
       .required()
       .messages({
@@ -51,8 +51,8 @@ const validateEventData = (data, res) => {
         'any.required': 'End time is required',
       })
       .custom((value, helpers) => {
-        const { start_time } = helpers.state.ancestors[0];
-        if (value <= start_time) {
+        const { startTime } = helpers.state.ancestors[0];
+        if (value <= startTime) {
           return helpers.error('any.invalid');
         }
         return value;

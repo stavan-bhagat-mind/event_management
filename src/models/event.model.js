@@ -20,7 +20,7 @@ const eventSchema = new mongoose.Schema(
       required: [true, 'Event date is required'],
       match: [/^\d{4}-\d{2}-\d{2}$/, 'Date format must be YYYY-MM-DD'],
     },
-    start_time: {
+    startTime: {
       type: String,
       required: [true, 'Start time is required'],
       match: [
@@ -28,7 +28,7 @@ const eventSchema = new mongoose.Schema(
         'Time format must be HH:MM in 24-hour format',
       ],
     },
-    end_time: {
+    endTime: {
       type: String,
       required: [true, 'End time is required'],
       match: [
@@ -37,7 +37,7 @@ const eventSchema = new mongoose.Schema(
       ],
       validate: {
         validator: function (value) {
-          return value > this.start_time;
+          return value > this.startTime;
         },
         message: 'End time must be after start time',
       },
@@ -64,7 +64,7 @@ const eventSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
-    is_published: {
+    isPublished: {
       type: Boolean,
       default: false,
     },

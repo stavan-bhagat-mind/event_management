@@ -51,8 +51,8 @@ async function createEventHandler(req, res) {
       images: imageUrls,
       location: value.location,
       date: value.date,
-      start_time: value.start_time,
-      end_time: value.end_time,
+      startTime: value.startTime,
+      endTime: value.endTime,
       seats: value.seats,
       creator: req.userId,
       organizer: value.organizers,
@@ -119,8 +119,8 @@ async function updateEventHandler(req, res) {
       description: value.description,
       location: value.location,
       date: value.date,
-      start_time: value.start_time,
-      end_time: value.end_time,
+      startTime: value.startTime,
+      endTime: value.endTime,
       seats: value.seats,
       organizer: value.organizers,
       price: value.price,
@@ -192,7 +192,7 @@ async function getUserCreatedEventsHandler(req, res) {
   try {
     const user = await Models.User.findOne({
       _id: req.userId,
-      user_type: ROLE[1],
+      userType: ROLE[1],
     });
     if (!user) {
       return res.status(STATUS_NOT_FOUND).json({
