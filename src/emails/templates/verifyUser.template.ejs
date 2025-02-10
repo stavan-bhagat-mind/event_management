@@ -14,68 +14,105 @@
       .container {
         max-width: 600px;
         margin: 20px auto;
+        margin-bottom: 0%;
         background-color: #ffffff;
-        padding: 20px;
         border-radius: 8px;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
       }
       .header {
         text-align: center;
-        padding-bottom: 20px;
-        border-bottom: 1px solid #e0e0e0;
+        padding: 20px;
+        padding-bottom: 0%;
+        background-color: #ffffff;
       }
-      .header h1 {
-        color: #333333;
-        font-size: 24px;
-        margin: 0;
+      .header img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 8px;
       }
       .content {
-        padding: 20px 0;
+        padding: 20px;
+        padding-top: 0%;
         text-align: center;
+      }
+      .content h1 {
+        font-size: 24px;
+        color: #333333;
+        margin-top: 0%;
+        margin-bottom: 20px;
       }
       .content p {
         color: #555555;
-        font-size: 16px;
+        font-size: 14px;
         line-height: 1.6;
+        margin: 0 0 20px;
       }
       .button {
         display: inline-block;
-        margin-top: 20px;
         padding: 12px 24px;
         background-color: #7db9f9;
         color: #ffffff;
         text-decoration: none;
         border-radius: 4px;
+        margin: 0 0 20px;
         font-size: 16px;
+        font-weight: 600;
+        transition: background-color 0.3s ease;
+      }
+      .button:hover {
+        background-color: #5a9de6;
       }
       .footer {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 0 0 8px 8px;
         text-align: center;
-        padding-top: 20px;
-        border-top: 1px solid #e0e0e0;
-        color: #888888;
-        font-size: 14px;
+      }
+      .footer p {
+        color: #718096;
+        font-size: 12px;
+        line-height: 1.5;
+        margin: 0 0 10px;
+      }
+      .footer a {
+        color: #4299e1;
+        text-decoration: none;
+      }
+      .footer a:hover {
+        text-decoration: underline;
       }
     </style>
   </head>
   <body>
     <div class="container">
+      <!-- Header with Image -->
       <div class="header">
-        <h1>Verify Your Email Address</h1>
+        <img src="<%= imageUrl %>" alt="Header Image" />
       </div>
+
+      <!-- Content -->
       <div class="content">
+        <h1>Verify Your Email Address</h1>
         <p>
-          Thank you for signing up! To complete your registration, please verify
-          your email address by clicking the button below:
+          You've entered <strong><%= email %></strong> as the email address for
+          your account.
         </p>
+        <p>Please verify this email address by clicking the button below:</p>
         <a href="<%= verificationUrl %>" class="button">Verify Email</a>
         <p>
           If you did not create an account, you can safely ignore this email.
         </p>
       </div>
+
+      <!-- Footer -->
       <div class="footer">
         <p>
-          This email was sent by <strong><%= appName %></strong>. Please do not
-          reply to this email.
+          Need help? <a href="<%= supportUrl %>">Contact our support team</a>
+        </p>
+        <p>
+          &copy; <%= new Date().getFullYear() %> <%= appName %>. All rights
+          reserved.
         </p>
       </div>
     </div>

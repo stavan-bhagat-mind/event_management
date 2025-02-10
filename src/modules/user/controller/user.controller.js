@@ -445,7 +445,7 @@ async function verifyAndResetPasswordHandler(req, res) {
     });
   }
 }
-
+  
 module.exports = {
   registerHandler,
   loginHandler,

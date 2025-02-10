@@ -44,8 +44,8 @@ const createBookingHandler = async (req, res) => {
         message: 'Event not found or not published',
       });
     }
-
     // Check seat availability
+
     if (event.seats.booked + seatsBooked > event.seats.total) {
       return res.status(STATUS_BAD_REQUEST).json({
         success: false,
@@ -116,7 +116,12 @@ const getBookingDetailsHandler = async (req, res) => {
   }
 };
 
+// validate qr for the event
+
+const validateQRCodeHandler = async (req, res) => {};
+
 module.exports = {
   createBookingHandler,
   getBookingDetailsHandler,
+  validateQRCodeHandler,
 };

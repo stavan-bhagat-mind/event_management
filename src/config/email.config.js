@@ -14,6 +14,8 @@ const transporter = nodemailer.createTransport({
 
 const sendVerificationEmail = async (email, token) => {
   try {
+    const logoUrl = 'https://i.ibb.co/jkPfpH0m/eventify-icon-filled-256.png';
+    const imageUrl = 'https://i.ibb.co/JFCb046J/Mar-Business-18.jpg';
     const verificationUrl = `${process.env.BASEURL}/event-management/user/verify/${token}`;
     const appName = APP.NAME;
     // Render the EJS template
@@ -24,6 +26,10 @@ const sendVerificationEmail = async (email, token) => {
     const emailBody = await ejs.renderFile(emailTemplatePath, {
       verificationUrl,
       appName,
+      logoUrl,
+      imageUrl,
+      email,
+      supportUrl: 'www.www.onion',
     });
 
     // Send the email
