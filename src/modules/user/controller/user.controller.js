@@ -147,7 +147,7 @@ async function loginHandler(req, res) {
       process.env.JWT_REFRESH_KEY,
       { expiresIn: process.env.JWT_REFRESH_EXPIRE_TIME }
     );
-    res.json({
+    return res.json({
       success: true,
       user: {
         id: user._id,
@@ -215,7 +215,7 @@ async function getUserDataHandler(req, res) {
         message: 'User not found',
       });
     }
-    res.json({
+    return res.json({
       success: true,
       user,
     });
@@ -286,7 +286,9 @@ async function resendVerificationEmail(req, res) {
     // Send new verification email
     await sendVerificationEmail(email, emailVerificationToken);
 
-    res.status(STATUS_SUCCESS).json({ message: VERIFICATION_EMAIL_SENT });
+    return res
+      .status(STATUS_SUCCESS)
+      .json({ message: VERIFICATION_EMAIL_SENT });
   } catch (error) {
     console.error('Resend verification email error:', error);
     return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
@@ -348,7 +350,7 @@ async function updateUserProfileHandler(req, res) {
       }
     );
 
-    res.status(STATUS_SUCCESS).json({
+    return res.status(STATUS_SUCCESS).json({
       message: COMMON_MSG.UPDATED_SUCCESS.replace('##', USER),
       updatedUser,
     });
@@ -386,7 +388,7 @@ async function forgotPasswordHandler(req, res) {
       user.firstName
     );
 
-    res.status(STATUS_SUCCESS).json({
+    return res.status(STATUS_SUCCESS).json({
       message: MSG_RESET_PASSWORD_EMAIL_SENT,
     });
   } catch (error) {
@@ -433,7 +435,7 @@ async function verifyAndResetPasswordHandler(req, res) {
 
     await user.save();
 
-    res.status(STATUS_SUCCESS).json({
+    return res.status(STATUS_SUCCESS).json({
       success: true,
       message: PASSWORD_RESET_SUCCESS,
     });
