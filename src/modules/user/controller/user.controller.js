@@ -445,7 +445,32 @@ async function verifyAndResetPasswordHandler(req, res) {
     });
   }
 }
-  
+
+// temp api will remove it
+async function deleteUser(req, res) {
+  try {
+    const email = req.query.email;
+
+    // Check if email is provided
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required.' });
+    }
+
+    // Delete the user with the specified email
+    const result = await Models.User.deleteOne({ email });
+
+    // Check if a user was deleted
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ message: 'User  not found.' });
+    }
+
+    // Respond with a success message
+    console.log(`user ${email} deleted`);
+    return res.status(200).json({ message: 'User  deleted successfully.' });
+  } catch (error) {
+    console.log(error);
+  }
+}
 module.exports = {
   registerHandler,
   loginHandler,
@@ -456,4 +481,5 @@ module.exports = {
   updateUserProfileHandler,
   forgotPasswordHandler,
   verifyAndResetPasswordHandler,
+  deleteUser,
 };

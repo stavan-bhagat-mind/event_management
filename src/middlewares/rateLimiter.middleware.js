@@ -1,7 +1,7 @@
 const rateLimit = require('express-rate-limit');
 
 const ResetRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: 60 * 60 * 1000,
   max: 3,
   message:
     'Too many password reset requests from this IP, please try again later.',

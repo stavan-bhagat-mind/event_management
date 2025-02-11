@@ -9,6 +9,7 @@ const {
   updateUserProfileHandler,
   forgotPasswordHandler,
   verifyAndResetPasswordHandler,
+  deleteUser
 } = require('../modules/user/controller/user.controller');
 const authentication = require('../middlewares/authentication.middleware');
 const { ResetRateLimiter } = require('../middlewares/rateLimiter.middleware');
@@ -17,7 +18,7 @@ const { singleUpload } = require('../config/multer.config');
 userRouter.post('/register', registerHandler);
 userRouter.post('/login', loginHandler);
 userRouter.get('/get-user', authentication, getUserDataHandler);
-userRouter.patch(
+userRouter.patch( 
   '/update-user',
   authentication,
   singleUpload('file'),
@@ -28,5 +29,6 @@ userRouter.post('/resend/verify', ResetRateLimiter, resendVerificationEmail);
 userRouter.get('/refresh-token', refreshTokenHandler);
 userRouter.post('/forgot-password', ResetRateLimiter, forgotPasswordHandler);
 userRouter.post('/reset-password', verifyAndResetPasswordHandler);
+userRouter.delete('/delete', deleteUser);
 
 module.exports = userRouter;
