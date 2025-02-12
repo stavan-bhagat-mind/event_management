@@ -8,6 +8,7 @@ const {
   validateLogin,
   validateUserUpdate,
   validateResetPassword,
+  validatePasswordUpdate,
 } = require('../../../modules/user/validations/user.validations');
 const { USER } = require('../utils/user.constants');
 const { USER_MESSAGE } = require('../utils/user.messages');
@@ -71,6 +72,7 @@ async function registerHandler(req, res) {
       email: value.email,
       userType: value.userType,
       password: hashedPassword,
+      contactNumber: value.contactNumber,
     });
 
     await sendVerificationEmail(user.email, emailVerificationToken);
@@ -82,6 +84,7 @@ async function registerHandler(req, res) {
       email: user.email,
       userType: user.userType,
       isEmailVerified: user.isEmailVerified,
+      contactNumber: user.contactNumber,
       createdAt: user.createdAt,
     };
 
@@ -324,10 +327,6 @@ async function updateUserProfileHandler(req, res) {
       contactNumber: value.contactNumber,
     };
 
-    if (value.password) {
-      updateFields.password = await bcrypt.hash(value.password, 10);
-    }
-
     // Process file upload
     if (req.file) {
       // Upload to MinIO
@@ -362,6 +361,53 @@ async function updateUserProfileHandler(req, res) {
   }
 }
 
+// Update Password
+async function updatePasswordHandler(req, res) {
+  try {
+    // validate user input
+    const userId = req.userId;
+    const { success, value } = validatePasswordUpdate(req.body, res);
+
+    if (!success) {
+      return res.status(STATUS_BAD_REQUEST).json({
+        success: false,
+        message: value.message,
+      });
+    }
+
+    const user = await Models.User.findById(userId);
+    if (!user) {
+      return res
+        .status(STATUS_NOT_FOUND)
+        .json({ message: COMMON_MSG.NOT_FOUND.replace('##', USER) });
+    }
+    const isMatch = await bcrypt.compare(value.oldPassword, user.password);
+
+    if (!isMatch) {
+      return res.status(STATUS_BAD_REQUEST).json({
+        success: false,
+        message: COMMON_MSG.INVALID.replace('##', 'Old Password'),
+      });
+    }
+    const hashedNewPassword = await bcrypt.hash(value.newPassword, 10);
+
+    await Models.User.findByIdAndUpdate(userId, {
+      password: hashedNewPassword,
+    });
+
+    return res.status(STATUS_SUCCESS).json({
+      success: true,
+      message: COMMON_MSG.UPDATED_SUCCESS.replace('##', 'Password'),
+    });
+  } catch (error) {
+    console.error('updatePasswordHandler :', error);
+    return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: MSG_INTERNAL_SERVER_ERROR,
+    });
+  }
+}
+
 // Forgot Password
 async function forgotPasswordHandler(req, res) {
   try {
@@ -373,6 +419,7 @@ async function forgotPasswordHandler(req, res) {
         .status(STATUS_NOT_FOUND)
         .json({ message: COMMON_MSG.NOT_FOUND.replace('##', USER) });
     }
+    if (!user.isEmailVerified) return res.status(STATUS_FORBIDDEN).json({});
     // generate OTP
     const resetPasswordToken = generateOTP();
     // Set expiry time
@@ -473,6 +520,7 @@ async function deleteUser(req, res) {
     console.log(error);
   }
 }
+
 module.exports = {
   registerHandler,
   loginHandler,
@@ -483,5 +531,6 @@ module.exports = {
   updateUserProfileHandler,
   forgotPasswordHandler,
   verifyAndResetPasswordHandler,
+  updatePasswordHandler,
   deleteUser,
 };

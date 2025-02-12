@@ -12,7 +12,12 @@ const validateUserRegister = (data, res) => {
     userType: Joi.string()
       .valid(...ROLE)
       .required(),
+    contactNumber: Joi.string()
+      .regex(/^[0-9]{10}$/)
+      .messages({ 'string.pattern.base': `Phone number must have 10 digits.` })
+      .optional(),
   });
+
   const { error, value } = userValidationSchema.validate(data);
   return {
     success: error ? false : true,
@@ -42,15 +47,34 @@ const validateUserUpdate = (data, res) => {
   const userValidationSchema = Joi.object({
     firstName: Joi.string().min(3).max(30).required(),
     lastName: Joi.string().min(3).max(30).required(),
-    // email: Joi.string().email().required(),
-    password: Joi.string().min(6).required(),
-    // userType: Joi.string()
-    //   .valid(...ROLE)
-    //   .required(),
     contactNumber: Joi.string()
       .regex(/^[0-9]{10}$/)
       .messages({ 'string.pattern.base': `Phone number must have 10 digits.` })
       .optional(),
+  });
+  const { error, value } = userValidationSchema.validate(data);
+  return {
+    success: error ? false : true,
+    value: error ? error : value,
+  };
+};
+
+const validatePasswordUpdate = (data, res) => {
+  const userValidationSchema = Joi.object({
+    oldPassword: Joi.string().min(6).required(),
+    newPassword: Joi.string()
+      .min(6)
+      .not(Joi.ref('oldPassword'))
+      .required()
+      .messages({
+        'any.invalid': 'New password must be different from old password.',
+      }),
+    newConfirmPassword: Joi.string()
+      .valid(Joi.ref('newPassword'))
+      .messages({
+        'incorrect password': `Password and confirm password must match.`,
+      })
+      .required(),
   });
   const { error, value } = userValidationSchema.validate(data);
   return {
@@ -83,4 +107,5 @@ module.exports = {
   validateLogin,
   validateUserUpdate,
   validateResetPassword,
+  validatePasswordUpdate,
 };
