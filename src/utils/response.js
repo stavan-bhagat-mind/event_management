@@ -22,13 +22,6 @@ module.exports = {
         }
       });
     }
-    // Set CORS headers
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Methods',
-      'OPTIONS, POST, GET, PUT, DELETE'
-    );
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     return res.status(statusCode).json(response);
   },
@@ -42,13 +35,6 @@ module.exports = {
       },
     };
 
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Methods',
-      'OPTIONS, POST, GET, PUT, DELETE'
-    );
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
     return res.status(responseCode).json(response);
   },
 
@@ -60,13 +46,6 @@ module.exports = {
         message,
       },
     };
-
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Methods',
-      'OPTIONS, POST, GET, PUT, DELETE'
-    );
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     return res.status(statusCode).json(response);
   },
@@ -83,13 +62,6 @@ module.exports = {
         }
       });
     }
-    // Set CORS headers
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header(
-      'Access-Control-Allow-Methods',
-      'OPTIONS, POST, GET, PUT, DELETE'
-    );
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     return res.status(statusCode).json(response);
   },

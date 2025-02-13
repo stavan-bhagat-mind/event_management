@@ -13,6 +13,8 @@
 //   ResetRateLimiter,
 // };
 const Models = require('../models/index');
+const { errorResponseData } = require('../utils/response');
+const { STATUS_TO_MANY_REQUEST } = require('../utils/common/constants');
 
 const defaultLimits = {
   'reset-password': { maxAttempts: 3, timeWindowInHours: 1 },
@@ -90,10 +92,12 @@ function createRateLimiter(actionType) {
       const result = await checkRateLimit(identifier, actionType);
 
       if (!result.allowed) {
-        return res.status(429).json({
-          error: 'Too many attempts',
-          tryAgainInMinutes: result.tryAgainInMinutes,
-        });
+        errorResponseData(
+          res,
+          STATUS_TO_MANY_REQUEST,
+          'Too many attempts',
+          (tryAgainInMinutes = result.tryAgainInMinutes)
+        );
       }
 
       next();

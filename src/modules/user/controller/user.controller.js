@@ -12,7 +12,9 @@ const {
 } = require('../../../modules/user/validations/user.validations');
 const {
   errorResponseWithoutData,
+  successResponseData,
   validationErrorResponseData,
+  successResponseWithoutData,
 } = require('../../../utils/response');
 const { USER } = require('../utils/user.constants');
 const { USER_MESSAGE } = require('../utils/user.messages');
@@ -34,6 +36,7 @@ const {
   STATUS_BAD_REQUEST,
   STATUS_NOT_FOUND,
   STATUS_SUCCESS,
+  STATUS_CREATED,
   STATUS_FORBIDDEN,
 } = require('../../../utils/common/constants');
 const {
@@ -48,12 +51,12 @@ async function registerHandler(req, res) {
     // validate user input
     const { success, value } = validateUserRegister(req.body, res);
     if (!success) {
-      validationErrorResponseData(res, value.message);
+      return validationErrorResponseData(res, value.message);
     }
     // Check for existing user
     const existingUser = await Models.User.findOne({ email: value.email });
     if (existingUser) {
-      errorResponseWithoutData(
+      return errorResponseWithoutData(
         res,
         STATUS_STATUS_CONFLICT,
         COMMON_MSG.ALREADY_EXISTS.replace('##', USER)
@@ -90,14 +93,15 @@ async function registerHandler(req, res) {
       createdAt: user.createdAt,
     };
 
-    return res.status(201).json({
-      success: true,
-      data: userResponse,
-      message: MSG_VERIFY_EMAIL,
-    });
+    return successResponseData(
+      res,
+      userResponse,
+      STATUS_CREATED,
+      MSG_VERIFY_EMAIL
+    );
   } catch (error) {
     console.error(`Registration error: ${error.message}`);
-    errorResponseWithoutData(
+    return errorResponseWithoutData(
       res,
       STATUS_INTERNAL_SERVER_ERROR,
       MSG_INTERNAL_SERVER_ERROR
@@ -110,25 +114,25 @@ async function loginHandler(req, res) {
   try {
     const { success, value } = validateLogin(req.body, res);
     if (!success) {
-      validationErrorResponseData(res, value.message);
+      return validationErrorResponseData(res, value.message);
     }
     // Find user
     const user = await Models.User.findOne({ email: value.email });
     if (!user) {
-      errorResponseWithoutData(
+      return errorResponseWithoutData(
         res,
         STATUS_NOT_FOUND,
         COMMON_MSG.NOT_FOUND.replace('##', USER)
       );
     }
     if (!user.isEmailVerified)
-      errorResponseWithoutData(res, STATUS_FORBIDDEN, MSG_VERIFY_EMAIL);
+      return errorResponseWithoutData(res, STATUS_FORBIDDEN, MSG_VERIFY_EMAIL);
 
     // Check password
     const isMatch = await bcrypt.compare(value.password, user.password);
 
     if (!isMatch) {
-      errorResponseWithoutData(
+      return errorResponseWithoutData(
         res,
         STATUS_FORBIDDEN,
         USER_MESSAGE.INVALID_CREDENTIALS
@@ -148,20 +152,23 @@ async function loginHandler(req, res) {
       process.env.JWT_REFRESH_KEY,
       { expiresIn: process.env.JWT_REFRESH_EXPIRE_TIME }
     );
-    return res.json({
-      success: true,
-      user: {
+
+    return successResponseData(
+      res,
+      {
         id: user._id,
         name: user.firstName + ' ' + user.lastName,
         email: user.email,
         userType: user.userType,
+        token,
+        refreshToken,
       },
-      token,
-      refreshToken,
-    });
+      STATUS_CREATED,
+      MSG_VERIFY_EMAIL
+    );
   } catch (error) {
     console.error(`Login error: ${error.message}`);
-    errorResponseWithoutData(
+    return errorResponseWithoutData(
       res,
       STATUS_INTERNAL_SERVER_ERROR,
       MSG_INTERNAL_SERVER_ERROR
@@ -184,10 +191,12 @@ async function refreshTokenHandler(req, res) {
       }
     );
 
-    return res.status(STATUS_SUCCESS).json({
-      message: MSG_ACCESS_TOKEN_REFRESHED,
-      accessToken: newAccessToken,
-    });
+    return successResponseData(
+      res,
+      newAccessToken,
+      STATUS_SUCCESS,
+      MSG_ACCESS_TOKEN_REFRESHED
+    );
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
       return res
@@ -214,15 +223,16 @@ async function getUserDataHandler(req, res) {
     const userId = req.userId;
     const user = await Models.User.findById(userId);
     if (!user) {
-      errorResponseWithoutData(
+      return errorResponseWithoutData(
         res,
         STATUS_NOT_FOUND,
         COMMON_MSG.NOT_FOUND.replace('##', 'User')
       );
     }
-    return res.json({
-      success: true,
-      data: {
+
+    return successResponseData(
+      res,
+      {
         id: user._id,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -232,10 +242,12 @@ async function getUserDataHandler(req, res) {
         password: user.password,
         profilePictureUrl: user.profilePictureUrl,
       },
-    });
+      STATUS_SUCCESS,
+      COMMON_MSG.FETCHED_SUCCESS('##', USER)
+    );
   } catch (error) {
     console.error(`Get user data error: ${error.message}`);
-    errorResponseWithoutData(
+    return errorResponseWithoutData(
       res,
       STATUS_INTERNAL_SERVER_ERROR,
       MSG_INTERNAL_SERVER_ERROR
@@ -250,14 +262,14 @@ async function userVerificationHandler(req, res) {
     const decoded = jwt.verify(token, process.env.VERIFY_SECRET);
     const user = await Models.User.findOne({ email: decoded.email });
     if (!user) {
-      errorResponseWithoutData(
+      return errorResponseWithoutData(
         res,
         STATUS_NOT_FOUND,
         COMMON_MSG.NOT_FOUND.replace('##', 'User')
       );
     }
     if (user.isEmailVerified) {
-      errorResponseWithoutData(
+      return errorResponseWithoutData(
         res,
         STATUS_BAD_REQUEST,
         COMMON_MSG.VERIFIED_SUCCESS.replace('##', 'email')
@@ -265,12 +277,14 @@ async function userVerificationHandler(req, res) {
     }
     user.isEmailVerified = true;
     await user.save();
-    return res
-      .status(STATUS_SUCCESS)
-      .json({ message: COMMON_MSG.VERIFIED_SUCCESS.replace('##', 'email') });
+    return successResponseWithoutData(
+      res,
+      STATUS_SUCCESS,
+      COMMON_MSG.VERIFIED_SUCCESS.replace('##', 'email')
+    );
   } catch (error) {
     console.error('Verification error:', error);
-    errorResponseWithoutData(
+    return errorResponseWithoutData(
       res,
       STATUS_INTERNAL_SERVER_ERROR,
       MSG_INTERNAL_SERVER_ERROR
@@ -287,7 +301,7 @@ async function resendVerificationEmail(req, res) {
     const user = await Models.User.findOne({ email });
 
     if (!user) {
-      errorResponseWithoutData(
+      return errorResponseWithoutData(
         res,
         STATUS_BAD_REQUEST,
         COMMON_MSG.NOT_FOUND.replace('##', USER)
@@ -295,7 +309,7 @@ async function resendVerificationEmail(req, res) {
     }
 
     if (user.isEmailVerified) {
-      errorResponseWithoutData(
+      return errorResponseWithoutData(
         res,
         STATUS_BAD_REQUEST,
         COMMON_MSG.ALREADY_VERIFIED.replace('##', 'email')
@@ -310,12 +324,14 @@ async function resendVerificationEmail(req, res) {
     // Send new verification email
     await sendVerificationEmail(email, emailVerificationToken);
 
-    return res
-      .status(STATUS_SUCCESS)
-      .json({ message: VERIFICATION_EMAIL_SENT });
+    return successResponseWithoutData(
+      res,
+      STATUS_SUCCESS,
+      VERIFICATION_EMAIL_SENT
+    );
   } catch (error) {
     console.error('Resend verification email error:', error);
-    errorResponseWithoutData(
+    return errorResponseWithoutData(
       res,
       STATUS_INTERNAL_SERVER_ERROR,
       MSG_INTERNAL_SERVER_ERROR
@@ -330,12 +346,12 @@ async function updateUserProfileHandler(req, res) {
     const userId = req.userId;
     const { success, value } = validateUserUpdate(req.body, res);
     if (!success) {
-      validationErrorResponseData(res, value.message);
+      return validationErrorResponseData(res, value.message);
     }
 
     const user = await Models.User.findById(userId);
     if (!user) {
-      errorResponseWithoutData(
+      return errorResponseWithoutData(
         res,
         STATUS_BAD_REQUEST,
         COMMON_MSG.NOT_FOUND.replace('##', USER)
@@ -366,12 +382,15 @@ async function updateUserProfileHandler(req, res) {
       new: true,
     });
     console.log('user updated');
-    return res.status(STATUS_SUCCESS).json({
-      message: COMMON_MSG.UPDATED_SUCCESS.replace('##', 'Profile'),
+
+    return successResponseData(
+      res,
       updateFields,
-    });
+      STATUS_SUCCESS,
+      COMMON_MSG.UPDATED_SUCCESS.replace('##', 'Profile')
+    );
   } catch (error) {
-    errorResponseWithoutData(
+    return errorResponseWithoutData(
       res,
       STATUS_INTERNAL_SERVER_ERROR,
       MSG_INTERNAL_SERVER_ERROR
@@ -387,12 +406,12 @@ async function updatePasswordHandler(req, res) {
     const { success, value } = validatePasswordUpdate(req.body, res);
 
     if (!success) {
-      validationErrorResponseData(res, value.message);
+      return validationErrorResponseData(res, value.message);
     }
 
     const user = await Models.User.findById(userId);
     if (!user) {
-      errorResponseWithoutData(
+      return errorResponseWithoutData(
         res,
         STATUS_BAD_REQUEST,
         COMMON_MSG.NOT_FOUND.replace('##', USER)
@@ -401,7 +420,7 @@ async function updatePasswordHandler(req, res) {
     const isMatch = await bcrypt.compare(value.oldPassword, user.password);
 
     if (!isMatch) {
-      errorResponseWithoutData(
+      return errorResponseWithoutData(
         res,
         STATUS_BAD_REQUEST,
         COMMON_MSG.INVALID.replace('##', 'Old Password')
@@ -413,13 +432,15 @@ async function updatePasswordHandler(req, res) {
       password: hashedNewPassword,
     });
     console.log('password updated');
-    return res.status(STATUS_SUCCESS).json({
-      success: true,
-      message: COMMON_MSG.UPDATED_SUCCESS.replace('##', 'Password'),
-    });
+
+    return successResponseWithoutData(
+      res,
+      STATUS_SUCCESS,
+      COMMON_MSG.UPDATED_SUCCESS.replace('##', 'Password')
+    );
   } catch (error) {
     console.error('updatePasswordHandler :', error);
-    errorResponseWithoutData(
+    return errorResponseWithoutData(
       res,
       STATUS_INTERNAL_SERVER_ERROR,
       MSG_INTERNAL_SERVER_ERROR
@@ -434,14 +455,14 @@ async function forgotPasswordHandler(req, res) {
     const user = await Models.User.findOne({ email });
 
     if (!user) {
-      errorResponseWithoutData(
+      return errorResponseWithoutData(
         res,
         STATUS_NOT_FOUND,
         COMMON_MSG.NOT_FOUND.replace('##', USER)
       );
     }
     if (!user.isEmailVerified)
-      errorResponseWithoutData(
+      return errorResponseWithoutData(
         res,
         STATUS_FORBIDDEN,
         COMMON_MSG.NOT_FOUND.replace('##', USER)
@@ -461,12 +482,14 @@ async function forgotPasswordHandler(req, res) {
       user.firstName
     );
 
-    return res.status(STATUS_SUCCESS).json({
-      message: MSG_RESET_PASSWORD_EMAIL_SENT,
-    });
+    return successResponseWithoutData(
+      res,
+      STATUS_SUCCESS,
+      MSG_RESET_PASSWORD_EMAIL_SENT
+    );
   } catch (error) {
     console.error('Forgot password error:', error);
-    errorResponseWithoutData(
+    return errorResponseWithoutData(
       res,
       STATUS_INTERNAL_SERVER_ERROR,
       MSG_INTERNAL_SERVER_ERROR
@@ -479,7 +502,7 @@ async function verifyAndResetPasswordHandler(req, res) {
   try {
     const { value, success } = validateResetPassword(req.body, res);
     if (!success) {
-      validationErrorResponseData(res, value.message);
+      return validationErrorResponseData(res, value.message);
     }
 
     // Find user and verify OTP
@@ -490,7 +513,7 @@ async function verifyAndResetPasswordHandler(req, res) {
     });
 
     if (!user) {
-      errorResponseWithoutData(
+      return errorResponseWithoutData(
         res,
         STATUS_BAD_REQUEST,
         'Invalid or expired OTP'
@@ -507,13 +530,14 @@ async function verifyAndResetPasswordHandler(req, res) {
 
     await user.save();
 
-    return res.status(STATUS_SUCCESS).json({
-      success: true,
-      message: PASSWORD_RESET_SUCCESS,
-    });
+    return successResponseWithoutData(
+      res,
+      STATUS_SUCCESS,
+      PASSWORD_RESET_SUCCESS
+    );
   } catch (error) {
     console.error('Reset password error:', error);
-    errorResponseWithoutData(
+    return errorResponseWithoutData(
       res,
       STATUS_INTERNAL_SERVER_ERROR,
       MSG_INTERNAL_SERVER_ERROR
