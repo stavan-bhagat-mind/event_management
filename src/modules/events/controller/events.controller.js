@@ -1,4 +1,11 @@
 const Models = require('../../../models/index');
+const {
+  successResponseData,
+  errorResponseData,
+  errorResponseWithoutData,
+  validationErrorResponseData,
+  successResponseWithoutData,
+} = require('../../../utils/response');
 const FileService = require('../../../services/file.service');
 const {
   validateEventData,
@@ -17,6 +24,7 @@ const {
   STATUS_BAD_REQUEST,
   STATUS_NOT_FOUND,
   STATUS_SUCCESS,
+  CODE,
 } = require('../../../utils/common/constants');
 
 // Create Event
@@ -26,10 +34,7 @@ async function createEventHandler(req, res) {
 
     const { success, value } = validateEventData(req.body, res);
     if (!success) {
-      return res.status(STATUS_BAD_REQUEST).json({
-        success: false,
-        message: value.message,
-      });
+      validationErrorResponseData(res, value.message);
     }
 
     const imageUrls = [];
@@ -67,17 +72,20 @@ async function createEventHandler(req, res) {
     // await User.findByIdAndUpdate(req.user.id, {
     //   $inc: { 'subscription.eventsCreated': 1 },
     // });
-    return res.status(STATUS_SUCCESS).json({
-      success: true,
-      data: event,
-      message: COMMON_MSG.CREATED_SUCCESS.replace('##', 'Event'),
-    });
+
+    successResponseData(
+      res,
+      event,
+      CODE.SUCCESS,
+      COMMON_MSG.CREATED_SUCCESS.replace('##', 'Event')
+    );
   } catch (error) {
     console.error(`Registration error: ${error.message}`);
-    return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: MSG_INTERNAL_SERVER_ERROR,
-    });
+    errorResponseWithoutData(
+      res,
+      STATUS_INTERNAL_SERVER_ERROR,
+      MSG_INTERNAL_SERVER_ERROR
+    );
   }
 }
 
@@ -86,10 +94,7 @@ async function updateEventHandler(req, res) {
   try {
     const { success, value } = validateEventData(req.body, res);
     if (!success) {
-      return res.status(STATUS_BAD_REQUEST).json({
-        success: false,
-        message: value.message,
-      });
+      validationErrorResponseData(res, value.message);
     }
     const event = await Models.Event.find({
       _id: req.params.id,
@@ -97,9 +102,11 @@ async function updateEventHandler(req, res) {
     });
 
     if (!event)
-      return res
-        .status(STATUS_NOT_FOUND)
-        .json({ message: COMMON_MSG.NOT_FOUND.replace('##', 'Event') });
+      errorResponseWithoutData(
+        res,
+        STATUS_NOT_FOUND,
+        COMMON_MSG.NOT_FOUND.replace('##', 'Event')
+      );
 
     const imageUrls = [];
 
@@ -135,22 +142,27 @@ async function updateEventHandler(req, res) {
     );
 
     if (result.modifiedCount === 0) {
-      return res.status(STATUS_BAD_REQUEST).json({
-        success: false,
-        message: MSG_NO_CHANGES_MADE,
-      });
+      errorResponseWithoutData(res, STATUS_BAD_REQUEST, MSG_NO_CHANGES_MADE);
     }
-    return res.status(STATUS_SUCCESS).json({
-      success: true,
-      data: result,
-      message: COMMON_MSG.UPDATED_SUCCESS.replace('##', 'Event'),
-    });
+
+    // return res.status(STATUS_SUCCESS).json({
+    //   success: true,
+    //   data: result,
+    //   message: COMMON_MSG.UPDATED_SUCCESS.replace('##', 'Event'),
+    // });
+    successResponseData(
+      res,
+      result,
+      STATUS_SUCCESS,
+      COMMON_MSG.UPDATED_SUCCESS.replace('##', 'Event')
+    );
   } catch (error) {
     console.error(`updateEventHandler error: ${error.message}`);
-    return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: MSG_INTERNAL_SERVER_ERROR,
-    });
+    errorResponseWithoutData(
+      res,
+      STATUS_INTERNAL_SERVER_ERROR,
+      MSG_INTERNAL_SERVER_ERROR
+    );
   }
 }
 
@@ -163,9 +175,11 @@ async function deleteEventHandler(req, res) {
     });
 
     if (!event) {
-      return res
-        .status(STATUS_NOT_FOUND)
-        .json({ message: COMMON_MSG.NOT_FOUND.replace('##', 'Event') });
+      errorResponseWithoutData(
+        res,
+        STATUS_NOT_FOUND,
+        COMMON_MSG.NOT_FOUND.replace('##', 'Event')
+      );
     }
 
     // Decrement event count
@@ -173,17 +187,18 @@ async function deleteEventHandler(req, res) {
     //   $inc: { 'subscription.eventsCreated': -1 },
     // });
 
-    return res.status(STATUS_SUCCESS).json({
-      success: true,
-      data: result,
-      message: COMMON_MSG.DELETED_SUCCESS.replace('##', 'Event'),
-    });
+    successResponseWithoutData(
+      res,
+      STATUS_SUCCESS,
+      COMMON_MSG.DELETED_SUCCESS.replace('##', 'Event')
+    );
   } catch (error) {
     console.error(`deleteEventHandler error: ${error.message}`);
-    return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: MSG_INTERNAL_SERVER_ERROR,
-    });
+    errorResponseWithoutData(
+      res,
+      STATUS_INTERNAL_SERVER_ERROR,
+      MSG_INTERNAL_SERVER_ERROR
+    );
   }
 }
 
@@ -195,27 +210,26 @@ async function getUserCreatedEventsHandler(req, res) {
       userType: ROLE[1],
     });
     if (!user) {
-      return res.status(STATUS_NOT_FOUND).json({
-        success: false,
-        message: INACTIVE_USER,
-      });
+      errorResponseWithoutData(res, STATUS_NOT_FOUND, INACTIVE_USER);
     }
     const events = await Models.Event.find({ creator: req.userId })
       .sort('-date')
       .populate('creator', 'email');
 
-    return res.status(STATUS_SUCCESS).json({
-      success: true,
-      data: events,
-      total: events.length,
-      message: COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Events'),
-    });
+    successResponseData(
+      res,
+      events,
+      STATUS_SUCCESS,
+      COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Events'),
+      (total = events.length)
+    );
   } catch (error) {
     console.error(`getUserCreatedEventsHandler error: ${error.message}`);
-    return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: MSG_INTERNAL_SERVER_ERROR,
-    });
+    errorResponseWithoutData(
+      res,
+      STATUS_INTERNAL_SERVER_ERROR,
+      MSG_INTERNAL_SERVER_ERROR
+    );
   }
 }
 
@@ -224,17 +238,19 @@ async function getEventDetailsHandler(req, res) {
   try {
     const events = await Models.Event.find({ _id: req.params.id });
 
-    return res.status(STATUS_SUCCESS).json({
-      success: true,
-      data: events,
-      message: COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Event'),
-    });
+    successResponseData(
+      res,
+      events,
+      STATUS_SUCCESS,
+      COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Events')
+    );
   } catch (error) {
     console.error(`getEventDetailsHandler error: ${error.message}`);
-    return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: MSG_INTERNAL_SERVER_ERROR,
-    });
+    errorResponseWithoutData(
+      res,
+      STATUS_INTERNAL_SERVER_ERROR,
+      MSG_INTERNAL_SERVER_ERROR
+    );
   }
 }
 
@@ -246,18 +262,20 @@ async function getPublishedEventsHandler(req, res) {
       date: { $gte: new Date() },
     }).sort('date');
 
-    return res.status(STATUS_SUCCESS).json({
-      success: true,
-      data: events,
-      total: events.length,
-      message: COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Events'),
-    });
+    successResponseData(
+      res,
+      events,
+      STATUS_SUCCESS,
+      COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Events'),
+      (total = events.length)
+    );
   } catch (error) {
     console.error(`getPublishEventsHandler error: ${error.message}`);
-    return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: MSG_INTERNAL_SERVER_ERROR,
-    });
+    errorResponseWithoutData(
+      res,
+      STATUS_INTERNAL_SERVER_ERROR,
+      MSG_INTERNAL_SERVER_ERROR
+    );
   }
 }
 

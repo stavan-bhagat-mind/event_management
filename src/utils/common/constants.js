@@ -9,6 +9,10 @@ module.exports = {
     USER: 'User',
     EVENT: 'Event',
   },
+  CODE: {
+    SUCCESS: 1,
+    FAIL: 0,
+  },
   // http-Status-Codes
   STATUS_SUCCESS: 200,
   STATUS_CREATED: 201,

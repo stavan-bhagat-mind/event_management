@@ -58,6 +58,10 @@ const userSchema = new Schema(
     profilePictureUrl: {
       type: String,
     },
+    metadata: {
+      type: Map,
+      of: String,
+    },
     deletedAt: {
       type: Date,
       default: null,

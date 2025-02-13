@@ -10,6 +10,10 @@ const {
   validateResetPassword,
   validatePasswordUpdate,
 } = require('../../../modules/user/validations/user.validations');
+const {
+  errorResponseWithoutData,
+  validationErrorResponseData,
+} = require('../../../utils/response');
 const { USER } = require('../utils/user.constants');
 const { USER_MESSAGE } = require('../utils/user.messages');
 require('dotenv').config();
@@ -44,18 +48,16 @@ async function registerHandler(req, res) {
     // validate user input
     const { success, value } = validateUserRegister(req.body, res);
     if (!success) {
-      return res.status(STATUS_BAD_REQUEST).json({
-        success: false,
-        message: value.message,
-      });
+      validationErrorResponseData(res, value.message);
     }
     // Check for existing user
     const existingUser = await Models.User.findOne({ email: value.email });
     if (existingUser) {
-      return res.status(STATUS_STATUS_CONFLICT).json({
-        success: false,
-        message: COMMON_MSG.ALREADY_EXISTS.replace('##', USER),
-      });
+      errorResponseWithoutData(
+        res,
+        STATUS_STATUS_CONFLICT,
+        COMMON_MSG.ALREADY_EXISTS.replace('##', USER)
+      );
     }
 
     // Hash password
@@ -95,10 +97,11 @@ async function registerHandler(req, res) {
     });
   } catch (error) {
     console.error(`Registration error: ${error.message}`);
-    return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: MSG_INTERNAL_SERVER_ERROR,
-    });
+    errorResponseWithoutData(
+      res,
+      STATUS_INTERNAL_SERVER_ERROR,
+      MSG_INTERNAL_SERVER_ERROR
+    );
   }
 }
 
@@ -107,34 +110,29 @@ async function loginHandler(req, res) {
   try {
     const { success, value } = validateLogin(req.body, res);
     if (!success) {
-      return res.status(STATUS_BAD_REQUEST).json({
-        success: false,
-        message: value.message,
-      });
+      validationErrorResponseData(res, value.message);
     }
     // Find user
     const user = await Models.User.findOne({ email: value.email });
     if (!user) {
-      return res.status(STATUS_NOT_FOUND).json({
-        success: false,
-        message: COMMON_MSG.NOT_FOUND.replace('##', USER),
-      });
+      errorResponseWithoutData(
+        res,
+        STATUS_NOT_FOUND,
+        COMMON_MSG.NOT_FOUND.replace('##', USER)
+      );
     }
-    if (!user.isEmailVerified) {
-      return res.status(STATUS_FORBIDDEN).json({
-        success: false,
-        message: MSG_VERIFY_EMAIL,
-      });
-    }
+    if (!user.isEmailVerified)
+      errorResponseWithoutData(res, STATUS_FORBIDDEN, MSG_VERIFY_EMAIL);
 
     // Check password
     const isMatch = await bcrypt.compare(value.password, user.password);
 
     if (!isMatch) {
-      return res.status(STATUS_NOT_FOUND).json({
-        success: false,
-        message: USER_MESSAGE.INVALID_CREDENTIALS,
-      });
+      errorResponseWithoutData(
+        res,
+        STATUS_FORBIDDEN,
+        USER_MESSAGE.INVALID_CREDENTIALS
+      );
     }
 
     // Generate JWT token
@@ -163,10 +161,11 @@ async function loginHandler(req, res) {
     });
   } catch (error) {
     console.error(`Login error: ${error.message}`);
-    return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: MSG_INTERNAL_SERVER_ERROR,
-    });
+    errorResponseWithoutData(
+      res,
+      STATUS_INTERNAL_SERVER_ERROR,
+      MSG_INTERNAL_SERVER_ERROR
+    );
   }
 }
 
@@ -200,9 +199,11 @@ async function refreshTokenHandler(req, res) {
         .json({ message: MSG_INVALID_REFRESH_TOKEN });
     } else {
       console.error('Error refreshing access token:', error);
-      return res
-        .status(STATUS_INTERNAL_SERVER_ERROR)
-        .json({ message: MSG_INTERNAL_SERVER_ERROR });
+      errorResponseWithoutData(
+        res,
+        STATUS_INTERNAL_SERVER_ERROR,
+        MSG_INTERNAL_SERVER_ERROR
+      );
     }
   }
 }
@@ -213,21 +214,32 @@ async function getUserDataHandler(req, res) {
     const userId = req.userId;
     const user = await Models.User.findById(userId);
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found',
-      });
+      errorResponseWithoutData(
+        res,
+        STATUS_NOT_FOUND,
+        COMMON_MSG.NOT_FOUND.replace('##', 'User')
+      );
     }
     return res.json({
       success: true,
-      user,
+      data: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        contactNumber: user.contactNumber,
+        userType: user.userType,
+        password: user.password,
+        profilePictureUrl: user.profilePictureUrl,
+      },
     });
   } catch (error) {
     console.error(`Get user data error: ${error.message}`);
-    return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: MSG_INTERNAL_SERVER_ERROR,
-    });
+    errorResponseWithoutData(
+      res,
+      STATUS_INTERNAL_SERVER_ERROR,
+      MSG_INTERNAL_SERVER_ERROR
+    );
   }
 }
 
@@ -238,14 +250,18 @@ async function userVerificationHandler(req, res) {
     const decoded = jwt.verify(token, process.env.VERIFY_SECRET);
     const user = await Models.User.findOne({ email: decoded.email });
     if (!user) {
-      return res
-        .status(STATUS_NOT_FOUND)
-        .json({ message: COMMON_MSG.NOT_FOUND.replace('##', USER) });
+      errorResponseWithoutData(
+        res,
+        STATUS_NOT_FOUND,
+        COMMON_MSG.NOT_FOUND.replace('##', 'User')
+      );
     }
     if (user.isEmailVerified) {
-      return res
-        .status(STATUS_BAD_REQUEST)
-        .json({ message: COMMON_MSG.VERIFIED_SUCCESS.replace('##', 'email') });
+      errorResponseWithoutData(
+        res,
+        STATUS_BAD_REQUEST,
+        COMMON_MSG.VERIFIED_SUCCESS.replace('##', 'email')
+      );
     }
     user.isEmailVerified = true;
     await user.save();
@@ -254,10 +270,11 @@ async function userVerificationHandler(req, res) {
       .json({ message: COMMON_MSG.VERIFIED_SUCCESS.replace('##', 'email') });
   } catch (error) {
     console.error('Verification error:', error);
-    return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: MSG_INTERNAL_SERVER_ERROR,
-    });
+    errorResponseWithoutData(
+      res,
+      STATUS_INTERNAL_SERVER_ERROR,
+      MSG_INTERNAL_SERVER_ERROR
+    );
   }
 }
 
@@ -270,15 +287,19 @@ async function resendVerificationEmail(req, res) {
     const user = await Models.User.findOne({ email });
 
     if (!user) {
-      return res
-        .status(STATUS_NOT_FOUND)
-        .json({ message: COMMON_MSG.NOT_FOUND.replace('##', USER) });
+      errorResponseWithoutData(
+        res,
+        STATUS_BAD_REQUEST,
+        COMMON_MSG.NOT_FOUND.replace('##', USER)
+      );
     }
 
     if (user.isEmailVerified) {
-      return res
-        .status(STATUS_BAD_REQUEST)
-        .json({ message: COMMON_MSG.ALREADY_VERIFIED.replace('##', 'email') });
+      errorResponseWithoutData(
+        res,
+        STATUS_BAD_REQUEST,
+        COMMON_MSG.ALREADY_VERIFIED.replace('##', 'email')
+      );
     }
 
     const emailVerificationToken = jwt.sign(
@@ -294,10 +315,11 @@ async function resendVerificationEmail(req, res) {
       .json({ message: VERIFICATION_EMAIL_SENT });
   } catch (error) {
     console.error('Resend verification email error:', error);
-    return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: MSG_INTERNAL_SERVER_ERROR,
-    });
+    errorResponseWithoutData(
+      res,
+      STATUS_INTERNAL_SERVER_ERROR,
+      MSG_INTERNAL_SERVER_ERROR
+    );
   }
 }
 
@@ -308,17 +330,16 @@ async function updateUserProfileHandler(req, res) {
     const userId = req.userId;
     const { success, value } = validateUserUpdate(req.body, res);
     if (!success) {
-      return res.status(STATUS_BAD_REQUEST).json({
-        success: false,
-        message: value.message,
-      });
+      validationErrorResponseData(res, value.message);
     }
 
     const user = await Models.User.findById(userId);
     if (!user) {
-      return res
-        .status(STATUS_NOT_FOUND)
-        .json({ message: COMMON_MSG.NOT_FOUND.replace('##', USER) });
+      errorResponseWithoutData(
+        res,
+        STATUS_BAD_REQUEST,
+        COMMON_MSG.NOT_FOUND.replace('##', USER)
+      );
     }
 
     const updateFields = {
@@ -334,30 +355,27 @@ async function updateUserProfileHandler(req, res) {
         category: CATEGORY.USER,
         subCategory: userId,
       });
-      updateFields.profile_picture_url = fileData.url;
+      updateFields.profilePictureUrl = fileData.url;
       updateFields.metadata = {
         object_name: fileData.objectName,
         bucket: process.env.MINIO_BUCKET,
       };
     }
 
-    const updatedUser = await Models.User.findByIdAndUpdate(
-      userId,
-      updateFields,
-      {
-        new: true,
-      }
-    );
-
+    await Models.User.findByIdAndUpdate(userId, updateFields, {
+      new: true,
+    });
+    console.log('user updated');
     return res.status(STATUS_SUCCESS).json({
-      message: COMMON_MSG.UPDATED_SUCCESS.replace('##', USER),
-      updatedUser,
+      message: COMMON_MSG.UPDATED_SUCCESS.replace('##', 'Profile'),
+      updateFields,
     });
   } catch (error) {
-    return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: MSG_INTERNAL_SERVER_ERROR,
-    });
+    errorResponseWithoutData(
+      res,
+      STATUS_INTERNAL_SERVER_ERROR,
+      MSG_INTERNAL_SERVER_ERROR
+    );
   }
 }
 
@@ -369,42 +387,43 @@ async function updatePasswordHandler(req, res) {
     const { success, value } = validatePasswordUpdate(req.body, res);
 
     if (!success) {
-      return res.status(STATUS_BAD_REQUEST).json({
-        success: false,
-        message: value.message,
-      });
+      validationErrorResponseData(res, value.message);
     }
 
     const user = await Models.User.findById(userId);
     if (!user) {
-      return res
-        .status(STATUS_NOT_FOUND)
-        .json({ message: COMMON_MSG.NOT_FOUND.replace('##', USER) });
+      errorResponseWithoutData(
+        res,
+        STATUS_BAD_REQUEST,
+        COMMON_MSG.NOT_FOUND.replace('##', USER)
+      );
     }
     const isMatch = await bcrypt.compare(value.oldPassword, user.password);
 
     if (!isMatch) {
-      return res.status(STATUS_BAD_REQUEST).json({
-        success: false,
-        message: COMMON_MSG.INVALID.replace('##', 'Old Password'),
-      });
+      errorResponseWithoutData(
+        res,
+        STATUS_BAD_REQUEST,
+        COMMON_MSG.INVALID.replace('##', 'Old Password')
+      );
     }
     const hashedNewPassword = await bcrypt.hash(value.newPassword, 10);
 
     await Models.User.findByIdAndUpdate(userId, {
       password: hashedNewPassword,
     });
-
+    console.log('password updated');
     return res.status(STATUS_SUCCESS).json({
       success: true,
       message: COMMON_MSG.UPDATED_SUCCESS.replace('##', 'Password'),
     });
   } catch (error) {
     console.error('updatePasswordHandler :', error);
-    return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: MSG_INTERNAL_SERVER_ERROR,
-    });
+    errorResponseWithoutData(
+      res,
+      STATUS_INTERNAL_SERVER_ERROR,
+      MSG_INTERNAL_SERVER_ERROR
+    );
   }
 }
 
@@ -415,11 +434,18 @@ async function forgotPasswordHandler(req, res) {
     const user = await Models.User.findOne({ email });
 
     if (!user) {
-      return res
-        .status(STATUS_NOT_FOUND)
-        .json({ message: COMMON_MSG.NOT_FOUND.replace('##', USER) });
+      errorResponseWithoutData(
+        res,
+        STATUS_NOT_FOUND,
+        COMMON_MSG.NOT_FOUND.replace('##', USER)
+      );
     }
-    if (!user.isEmailVerified) return res.status(STATUS_FORBIDDEN).json({});
+    if (!user.isEmailVerified)
+      errorResponseWithoutData(
+        res,
+        STATUS_FORBIDDEN,
+        COMMON_MSG.NOT_FOUND.replace('##', USER)
+      );
     // generate OTP
     const resetPasswordToken = generateOTP();
     // Set expiry time
@@ -440,10 +466,11 @@ async function forgotPasswordHandler(req, res) {
     });
   } catch (error) {
     console.error('Forgot password error:', error);
-    return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: MSG_INTERNAL_SERVER_ERROR,
-    });
+    errorResponseWithoutData(
+      res,
+      STATUS_INTERNAL_SERVER_ERROR,
+      MSG_INTERNAL_SERVER_ERROR
+    );
   }
 }
 
@@ -452,10 +479,7 @@ async function verifyAndResetPasswordHandler(req, res) {
   try {
     const { value, success } = validateResetPassword(req.body, res);
     if (!success) {
-      return res.status(STATUS_BAD_REQUEST).json({
-        success: false,
-        message: value.message,
-      });
+      validationErrorResponseData(res, value.message);
     }
 
     // Find user and verify OTP
@@ -466,10 +490,11 @@ async function verifyAndResetPasswordHandler(req, res) {
     });
 
     if (!user) {
-      return res.status(STATUS_BAD_REQUEST).json({
-        success: false,
-        message: 'Invalid or expired OTP',
-      });
+      errorResponseWithoutData(
+        res,
+        STATUS_BAD_REQUEST,
+        'Invalid or expired OTP'
+      );
     }
 
     // Hash new password
@@ -488,10 +513,11 @@ async function verifyAndResetPasswordHandler(req, res) {
     });
   } catch (error) {
     console.error('Reset password error:', error);
-    return res.status(STATUS_INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: MSG_INTERNAL_SERVER_ERROR,
-    });
+    errorResponseWithoutData(
+      res,
+      STATUS_INTERNAL_SERVER_ERROR,
+      MSG_INTERNAL_SERVER_ERROR
+    );
   }
 }
 
@@ -518,6 +544,11 @@ async function deleteUser(req, res) {
     return res.status(200).json({ message: 'User  deleted successfully.' });
   } catch (error) {
     console.log(error);
+    errorResponseWithoutData(
+      res,
+      STATUS_INTERNAL_SERVER_ERROR,
+      MSG_INTERNAL_SERVER_ERROR
+    );
   }
 }
 
