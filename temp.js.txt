@@ -87,7 +87,6 @@ async function uploadFile() {
 // Call the async function
 uploadFile();
 -----------------
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -135,11 +134,11 @@ uploadFile();
                 style="
                   padding: 40px 30px 20px;
                   text-align: center;
-                  background-color: #f8f9fa;
+                  background-color: #1E90FF;
                   border-radius: 8px 8px 0 0;
                 "
               >
-                <h1 style="color: #2d3748; margin-top: 20px; font-size: 24px">
+                <h1 style="color: #fefefe; margin-top: 20px; font-size: 24px">
                   Password Reset Request
                 </h1>
               </td>
@@ -293,4 +292,3 @@ uploadFile();
     </table>
   </body>
 </html>
------

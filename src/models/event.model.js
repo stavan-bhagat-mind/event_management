@@ -64,6 +64,10 @@ const eventSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    organizer: {
+      type: String,
+      required: [true, 'Organizer is required'],
+    },
     isPublished: {
       type: Boolean,
       default: false,

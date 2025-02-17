@@ -4,23 +4,6 @@ const { BAD_REQUEST } = require('../../../utils/common/messages');
 const { STATUS_BAD_REQUEST } = require('../../../utils/common/constants');
 
 const validateEventData = (data, res) => {
-  // const validationSchema = Joi.object({
-  //   title: Joi.string().required(),
-  //   description: Joi.string().optional(),
-  //   location: Joi.string().required(),
-  //   date: Joi.date().iso().required(),
-  //   startTime:Joi.string()
-  // .pattern(/^([01]\d|2[0-3]):([0-5]\d)$/, 'time')
-  // .required(),
-  //   endTime:Joi.string()
-  // .pattern(/^([01]\d|2[0-3]):([0-5]\d)$/, 'time')
-  // .required(),
-  //   seats: Joi.object({
-  //     total: Joi.number().integer().min(1).required()
-  //   }).required(),
-  //   price: Joi.number().greater(0).required(),
-  //   organizer: Joi.string().required(),
-  // });
   const validationSchema = Joi.object({
     title: Joi.string().required().messages({
       'any.required': 'Event title is required',

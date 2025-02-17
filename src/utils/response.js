@@ -52,8 +52,11 @@ module.exports = {
 
   errorResponseData(res, statusCode, message, extras) {
     const response = {
-      code: CODE.FAIL,
-      message,
+      data: null,
+      meta: {
+        code: CODE.FAIL,
+        message,
+      },
     };
     if (extras) {
       Object.keys(extras).forEach((key) => {
@@ -68,8 +71,11 @@ module.exports = {
 
   validationErrorResponseData(res, message, extras) {
     const response = {
-      code: CODE.FAIL,
-      message,
+      data: null,
+      meta: {
+        code: CODE.FAIL,
+        message,
+      },
     };
     if (extras) {
       Object.keys(extras).forEach((key) => {

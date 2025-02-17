@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { errorResponseWithoutData } = require('../utils/response');
 
 const {
   INVALID_TOKEN,
@@ -16,11 +17,11 @@ const authenticationMiddleware = (req, res, next) => {
   try {
     const authenticationToken = req.headers['authorization'];
     if (!authenticationToken) {
-      return res.status(STATUS_UNAUTHORIZED).json({
-        success: false,
-        data: null,
-        message: MSG_ACCESS_TOKEN_MISSING,
-      });
+      return errorResponseWithoutData(
+        res,
+        STATUS_UNAUTHORIZED,
+        MSG_ACCESS_TOKEN_MISSING
+      );
     }
     const token = authenticationToken.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -28,23 +29,25 @@ const authenticationMiddleware = (req, res, next) => {
     next();
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
-      return res.status(STATUS_UNAUTHORIZED).send({
-        data: null,
-        message: MSG_TOKEN_EXPIRED,
-        errorName: error.name,
-      });
+      return errorResponseWithoutData(
+        res,
+        STATUS_UNAUTHORIZED,
+        MSG_TOKEN_EXPIRED
+      );
     } else if (error.name === 'JsonWebTokenError') {
-      return res.status(STATUS_FORBIDDEN).send({
-        data: null,
-        message: INVALID_TOKEN,
-        errorName: error.name,
-      });
+      return errorResponseData(
+        res,
+        STATUS_FORBIDDEN,
+        INVALID_TOKEN,
+        error.name
+      );
     } else {
       console.error('Authentication error:', error);
-      return res.status(STATUS_INTERNAL_SERVER_ERROR).send({
-        data: null,
-        message: MSG_INTERNAL_SERVER_ERROR,
-      });
+      return errorResponseWithoutData(
+        res,
+        STATUS_INTERNAL_SERVER_ERROR,
+        MSG_INTERNAL_SERVER_ERROR
+      );
     }
   }
 };

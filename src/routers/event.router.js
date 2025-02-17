@@ -25,8 +25,8 @@ eventRouter.patch(
   updateEventHandler
 );
 eventRouter.get('/my-events', authentication, getUserCreatedEventsHandler);
-eventRouter.get('/:id', getEventDetailsHandler);
 eventRouter.get('/upcoming-public', getPublishedEventsHandler);
+eventRouter.get('/:id', getEventDetailsHandler);
 eventRouter.delete('/:id', authentication, deleteEventHandler);
 
 module.exports = eventRouter;

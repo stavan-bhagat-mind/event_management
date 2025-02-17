@@ -24,6 +24,7 @@ const {
   STATUS_BAD_REQUEST,
   STATUS_NOT_FOUND,
   STATUS_SUCCESS,
+  STATUS_CREATED,
   CODE,
 } = require('../../../utils/common/constants');
 
@@ -34,7 +35,7 @@ async function createEventHandler(req, res) {
 
     const { success, value } = validateEventData(req.body, res);
     if (!success) {
-      validationErrorResponseData(res, value.message);
+      return validationErrorResponseData(res, value.message);
     }
 
     const imageUrls = [];
@@ -60,7 +61,7 @@ async function createEventHandler(req, res) {
       endTime: value.endTime,
       seats: value.seats,
       creator: req.userId,
-      organizer: value.organizers,
+      organizer: value.organizer,
       price: value.price,
       isPublished: true,
       // isPublished: req.user.subscription.planType !== 'trial',
@@ -73,15 +74,15 @@ async function createEventHandler(req, res) {
     //   $inc: { 'subscription.eventsCreated': 1 },
     // });
 
-    successResponseData(
+    return successResponseData(
       res,
       event,
-      CODE.SUCCESS,
+      STATUS_CREATED,
       COMMON_MSG.CREATED_SUCCESS.replace('##', 'Event')
     );
   } catch (error) {
     console.error(`Registration error: ${error.message}`);
-    errorResponseWithoutData(
+    return errorResponseWithoutData(
       res,
       STATUS_INTERNAL_SERVER_ERROR,
       MSG_INTERNAL_SERVER_ERROR
@@ -94,7 +95,7 @@ async function updateEventHandler(req, res) {
   try {
     const { success, value } = validateEventData(req.body, res);
     if (!success) {
-      validationErrorResponseData(res, value.message);
+      return validationErrorResponseData(res, value.message);
     }
     const event = await Models.Event.find({
       _id: req.params.id,
@@ -102,7 +103,7 @@ async function updateEventHandler(req, res) {
     });
 
     if (!event)
-      errorResponseWithoutData(
+      return errorResponseWithoutData(
         res,
         STATUS_NOT_FOUND,
         COMMON_MSG.NOT_FOUND.replace('##', 'Event')
@@ -142,7 +143,11 @@ async function updateEventHandler(req, res) {
     );
 
     if (result.modifiedCount === 0) {
-      errorResponseWithoutData(res, STATUS_BAD_REQUEST, MSG_NO_CHANGES_MADE);
+      return errorResponseWithoutData(
+        res,
+        STATUS_BAD_REQUEST,
+        MSG_NO_CHANGES_MADE
+      );
     }
 
     // return res.status(STATUS_SUCCESS).json({
@@ -150,7 +155,7 @@ async function updateEventHandler(req, res) {
     //   data: result,
     //   message: COMMON_MSG.UPDATED_SUCCESS.replace('##', 'Event'),
     // });
-    successResponseData(
+    return successResponseData(
       res,
       result,
       STATUS_SUCCESS,
@@ -158,7 +163,7 @@ async function updateEventHandler(req, res) {
     );
   } catch (error) {
     console.error(`updateEventHandler error: ${error.message}`);
-    errorResponseWithoutData(
+    return errorResponseWithoutData(
       res,
       STATUS_INTERNAL_SERVER_ERROR,
       MSG_INTERNAL_SERVER_ERROR
@@ -175,7 +180,7 @@ async function deleteEventHandler(req, res) {
     });
 
     if (!event) {
-      errorResponseWithoutData(
+      return errorResponseWithoutData(
         res,
         STATUS_NOT_FOUND,
         COMMON_MSG.NOT_FOUND.replace('##', 'Event')
@@ -187,14 +192,14 @@ async function deleteEventHandler(req, res) {
     //   $inc: { 'subscription.eventsCreated': -1 },
     // });
 
-    successResponseWithoutData(
+    return successResponseWithoutData(
       res,
       STATUS_SUCCESS,
       COMMON_MSG.DELETED_SUCCESS.replace('##', 'Event')
     );
   } catch (error) {
     console.error(`deleteEventHandler error: ${error.message}`);
-    errorResponseWithoutData(
+    return errorResponseWithoutData(
       res,
       STATUS_INTERNAL_SERVER_ERROR,
       MSG_INTERNAL_SERVER_ERROR
@@ -210,13 +215,13 @@ async function getUserCreatedEventsHandler(req, res) {
       userType: ROLE[1],
     });
     if (!user) {
-      errorResponseWithoutData(res, STATUS_NOT_FOUND, INACTIVE_USER);
+      return errorResponseWithoutData(res, STATUS_NOT_FOUND, INACTIVE_USER);
     }
     const events = await Models.Event.find({ creator: req.userId })
       .sort('-date')
       .populate('creator', 'email');
 
-    successResponseData(
+    return successResponseData(
       res,
       events,
       STATUS_SUCCESS,
@@ -225,7 +230,7 @@ async function getUserCreatedEventsHandler(req, res) {
     );
   } catch (error) {
     console.error(`getUserCreatedEventsHandler error: ${error.message}`);
-    errorResponseWithoutData(
+    return errorResponseWithoutData(
       res,
       STATUS_INTERNAL_SERVER_ERROR,
       MSG_INTERNAL_SERVER_ERROR
@@ -236,9 +241,9 @@ async function getUserCreatedEventsHandler(req, res) {
 // Get Event Details
 async function getEventDetailsHandler(req, res) {
   try {
-    const events = await Models.Event.find({ _id: req.params.id });
+    const events = await Models.Event.findById(req.params.id);
 
-    successResponseData(
+    return successResponseData(
       res,
       events,
       STATUS_SUCCESS,
@@ -246,7 +251,7 @@ async function getEventDetailsHandler(req, res) {
     );
   } catch (error) {
     console.error(`getEventDetailsHandler error: ${error.message}`);
-    errorResponseWithoutData(
+    return errorResponseWithoutData(
       res,
       STATUS_INTERNAL_SERVER_ERROR,
       MSG_INTERNAL_SERVER_ERROR
@@ -257,21 +262,23 @@ async function getEventDetailsHandler(req, res) {
 // Get Published Events
 async function getPublishedEventsHandler(req, res) {
   try {
+    const today = new Date().toISOString().split('T')[0];
     const events = await Models.Event.find({
       isPublished: true,
-      date: { $gte: new Date() },
+      // date: { $gte: new Date() },
+      date: { $gte: today },
     }).sort('date');
 
-    successResponseData(
+    return successResponseData(
       res,
       events,
       STATUS_SUCCESS,
       COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Events'),
-      (total = events.length)
+      { total: events.length }
     );
   } catch (error) {
-    console.error(`getPublishEventsHandler error: ${error.message}`);
-    errorResponseWithoutData(
+    console.error(`getPublishedEventsHandler error: ${error.message}`);
+    return errorResponseWithoutData(
       res,
       STATUS_INTERNAL_SERVER_ERROR,
       MSG_INTERNAL_SERVER_ERROR

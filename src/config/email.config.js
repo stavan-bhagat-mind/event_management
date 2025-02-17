@@ -15,7 +15,8 @@ const transporter = nodemailer.createTransport({
 const sendVerificationEmail = async (email, token) => {
   try {
     const logoUrl = 'https://i.ibb.co/jkPfpH0m/eventify-icon-filled-256.png';
-    const imageUrl = 'https://i.ibb.co/JFCb046J/Mar-Business-18.jpg';
+    const imageUrl =
+      'https://img.freepik.com/premium-vector/opened-envelope-document-with-green-check-mark-line-icon-official-confirmation-message-mail-sent-successfully-email-delivery-verification-email-flat-design-vector_662353-720.jpg';
     const verificationUrl = `${process.env.BASEURL}/event-management/user/verify/${token}`;
     const appName = APP.NAME;
     // Render the EJS template
@@ -49,7 +50,7 @@ const sendVerificationEmail = async (email, token) => {
 const sendResetPasswordEmail = async (email, resetToken, userName) => {
   try {
     const appName = APP.NAME;
-    // const logoUrl = 'https://i.ibb.co/v424L8f4/eventify.jpg';
+    const imageUrl = 'https://cdn-icons-png.flaticon.com/512/6434/6434880.png';
     const logoUrl = 'https://i.ibb.co/jkPfpH0m/eventify-icon-filled-256.png';
 
     // Render the EJS template
@@ -58,6 +59,7 @@ const sendResetPasswordEmail = async (email, resetToken, userName) => {
       '../../src/emails/templates/resetPassword.template.ejs'
     );
     const emailBody = await ejs.renderFile(emailTemplatePath, {
+      imageUrl,
       appName,
       resetToken,
       logoUrl,

@@ -163,8 +163,8 @@ async function loginHandler(req, res) {
         token,
         refreshToken,
       },
-      STATUS_CREATED,
-      MSG_VERIFY_EMAIL
+      STATUS_SUCCESS,
+      'User logged in successfully'
     );
   } catch (error) {
     console.error(`Login error: ${error.message}`);
@@ -243,7 +243,7 @@ async function getUserDataHandler(req, res) {
         profilePictureUrl: user.profilePictureUrl,
       },
       STATUS_SUCCESS,
-      COMMON_MSG.FETCHED_SUCCESS('##', USER)
+      COMMON_MSG.FETCHED_SUCCESS.replace('##', USER)
     );
   } catch (error) {
     console.error(`Get user data error: ${error.message}`);

@@ -92,11 +92,11 @@ function createRateLimiter(actionType) {
       const result = await checkRateLimit(identifier, actionType);
 
       if (!result.allowed) {
-        errorResponseData(
+        return errorResponseData(
           res,
           STATUS_TO_MANY_REQUEST,
           'Too many attempts',
-          (tryAgainInMinutes = result.tryAgainInMinutes)
+          { tryAgainInMinutes: result.tryAgainInMinutes }
         );
       }
 
