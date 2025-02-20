@@ -8,9 +8,12 @@ const {
   getPublishedEventsHandler,
   deleteEventHandler,
   getEventDetailsHandler,
+  getPresignedUrlHandler,
 } = require('../modules/events/controller/events.controller');
 const authentication = require('../middlewares/authentication.middleware');
 const { multipleUpload } = require('../config/multer.config');
+const { generatePresignedUrl } = require('../services/file.service');
+const FileService = require('../services/file.service');
 
 eventRouter.post(
   '/create',
@@ -21,9 +24,10 @@ eventRouter.post(
 eventRouter.patch(
   '/:id',
   authentication,
-  multipleUpload('image', 5),
+  multipleUpload('images', 5),
   updateEventHandler
 );
+
 eventRouter.get('/my-events', authentication, getUserCreatedEventsHandler);
 eventRouter.get('/upcoming-public', getPublishedEventsHandler);
 eventRouter.get('/:id', getEventDetailsHandler);

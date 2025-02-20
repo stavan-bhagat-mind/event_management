@@ -1,5 +1,8 @@
 const jwt = require('jsonwebtoken');
-const { errorResponseWithoutData } = require('../utils/response');
+const {
+  errorResponseWithoutData,
+  errorResponseData,
+} = require('../utils/response');
 
 const {
   INVALID_TOKEN,

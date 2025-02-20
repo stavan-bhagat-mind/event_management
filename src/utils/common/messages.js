@@ -41,6 +41,8 @@ module.exports = {
   MSG_ACCESS_TOKEN_REFRESHED: 'Access token refreshed successfully.',
   MSG_REFRESH_TOKEN_EXPIRED: 'Refresh token has expired.',
   MSG_INVALID_REFRESH_TOKEN: 'Invalid refresh token.',
+  MSG_LINK_EXPIRE:
+    'The verification link has expired. Please request a new verification link.',
   // email-Messages
   MSG_VERIFY_EMAIL: 'Please verify your email address.',
   MSG_RESET_PASSWORD_EMAIL_SENT: 'Reset password email sent successfully.',

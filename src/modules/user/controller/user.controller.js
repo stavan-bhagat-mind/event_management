@@ -23,6 +23,7 @@ const {
   MSG_INTERNAL_SERVER_ERROR,
   COMMON_MSG,
   MSG_BAD_REQUEST,
+  MSG_LINK_EXPIRE,
   PASSWORD_RESET_SUCCESS,
   MSG_ACCESS_TOKEN_REFRESHED,
   VERIFICATION_EMAIL_SENT,
@@ -284,6 +285,9 @@ async function userVerificationHandler(req, res) {
     );
   } catch (error) {
     console.error('Verification error:', error);
+    if (error.name === 'TokenExpiredError') {
+      return errorResponseWithoutData(res, STATUS_BAD_REQUEST, MSG_LINK_EXPIRE);
+    }
     return errorResponseWithoutData(
       res,
       STATUS_INTERNAL_SERVER_ERROR,

@@ -17,4 +17,23 @@ const generateQRCode = async (data) => {
   }
 };
 
-module.exports = { generateOTP, generateQRCode };
+// Utility function to extract object path from full URL
+const getObjectPathFromUrl = (url) => {
+  const baseUrl = process.env.MINIO_PUBLIC_URL;
+  const bucketName = process.env.MINIO_BUCKET;
+  return url.replace(`${baseUrl}/${bucketName}/`, '');
+};
+
+// Utility function to construct full URL from object path
+const getFullImageUrl = (objectPath) => {
+  const baseUrl = process.env.MINIO_PUBLIC_URL;
+  const bucketName = process.env.MINIO_BUCKET;
+  return `${baseUrl}/${bucketName}/${objectPath}`;
+};
+
+module.exports = {
+  generateOTP,
+  generateQRCode,
+  getObjectPathFromUrl,
+  getFullImageUrl,
+};

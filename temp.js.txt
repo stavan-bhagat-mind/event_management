@@ -292,3 +292,59 @@ uploadFile();
     </table>
   </body>
 </html>
+
+ {
+            "seats": {
+                "booked": 0,
+                "total": 12212
+            },
+            "imageData": [],
+            "_id": "67aed057a5033dde292e2e64",
+            "title": "champions kings",
+            "description": "india pakistan nai jayega",
+            "images": [
+                "https://api-minio.projects.mindinventory.net/event-management/Event/champions-kings/1739943266243-crycat-crying-cat.gif",
+                "https://api-minio.projects.mindinventory.net/event-management/Event/champions-kings/1739943266292-background-replacer-result.png"
+            ],
+            "location": "habibi come to dubai",
+            "date": "2026-10-05",
+            "startTime": "10:00",
+            "endTime": "13:00",
+            "price": 1500,
+            "creator": {
+                "_id": "67aecd7453c7125df3b0e4fa",
+                "email": "stavan.bhagat@mindinventory.com"
+            },
+            "isPublished": true,
+            "createdAt": "2025-02-14T05:10:47.661Z",
+            "updatedAt": "2025-02-19T05:34:26.305Z",
+            "__v": 0
+        },
+        ---
+         {
+            "seats": {
+                "total": 12345,
+                "booked": 0
+            },
+            "_id": "67b6f54f40758f763e4cd666",
+            "title": "shadi pe charchaa",
+            "description": "mamu ki shadi me jaroor aana ",
+            "images": [
+                "https://api-minio.projects.mindinventory.net/event-management/https://api-minio.projects.mindinventory.net/event-management/Event/shadi-pe-charchaa/1740043593581-crycat-crying-cat.gif",
+                "https://api-minio.projects.mindinventory.net/event-management/https://api-minio.projects.mindinventory.net/event-management/Event/shadi-pe-charchaa/1740043593650-eventifyy.jpeg"
+            ],
+            "location": "bopal, ahmedabad",
+            "date": "2025-10-04",
+            "startTime": "10:00",
+            "endTime": "12:00",
+            "price": 56,
+            "creator": {
+                "_id": "67aecd7453c7125df3b0e4fa",
+                "email": "stavan.bhagat@mindinventory.com"
+            },
+            "organizer": "mindhub",
+            "isPublished": true,
+            "createdAt": "2025-02-20T09:26:39.261Z",
+            "updatedAt": "2025-02-20T09:26:39.261Z",
+            "__v": 0
+        }

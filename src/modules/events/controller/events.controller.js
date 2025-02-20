@@ -1,4 +1,5 @@
 const Models = require('../../../models/index');
+const mongoose = require('mongoose');
 const {
   successResponseData,
   errorResponseData,
@@ -19,6 +20,10 @@ const {
 } = require('../../../utils/common/messages');
 const { ROLE } = require('../../../utils/common/constants');
 const {
+  getObjectPathFromUrl,
+  getFullImageUrl,
+} = require('../../../helpers/helper');
+const {
   CATEGORY,
   STATUS_INTERNAL_SERVER_ERROR,
   STATUS_BAD_REQUEST,
@@ -28,60 +33,72 @@ const {
   CODE,
 } = require('../../../utils/common/constants');
 
+// Helper function to transform event data with full image URLs
+const transformEventWithUrls = (event) => {
+  const eventObj = event.toObject();
+  return {
+    ...eventObj,
+    images: eventObj.images.map((path) => FileService.getFullUrl(path)),
+  };
+};
+
 // Create Event
 async function createEventHandler(req, res) {
   try {
-    // to do : validate that user is event_manager and  has subscription will be done in middleware
-
     const { success, value } = validateEventData(req.body, res);
     if (!success) {
       return validationErrorResponseData(res, value.message);
     }
 
-    const imageUrls = [];
+    // ObjectId that we'll use for both file storage and event creation
+    const eventId = new mongoose.Types.ObjectId();
 
-    // Process file uploads
+    const imagePaths = [];
+
+    // Process file uploads using the pre-generated event ID
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
-        const fileUrl = await FileService.uploadFile(file, {
+        const fileData = await FileService.uploadFile(file, {
           category: CATEGORY.EVENT,
-          subCategory: value.title.replace(/\s+/g, '-'),
+          subCategory: eventId.toString(),
         });
-        imageUrls.push(fileUrl.url);
+        imagePaths.push(fileData.objectPath);
       }
     }
 
-    const event = {
+    // Create event with all data including images in one operation
+    const event = await Models.Event.create({
+      _id: eventId,
       title: value.title,
       description: value.description,
-      images: imageUrls,
+      images: imagePaths,
       location: value.location,
       date: value.date,
       startTime: value.startTime,
       endTime: value.endTime,
-      seats: value.seats,
+      seats: {
+        total: value.seats,
+      },
       creator: req.userId,
       organizer: value.organizer,
       price: value.price,
       isPublished: true,
-      // isPublished: req.user.subscription.planType !== 'trial',
+    });
+
+    // Prepare response with full URLs
+    const responseData = {
+      ...event.toObject(),
+      images: event.images.map((path) => FileService.getFullUrl(path)),
     };
-
-    await Models.Event.create(event);
-
-    // Update user's event count
-    // await User.findByIdAndUpdate(req.user.id, {
-    //   $inc: { 'subscription.eventsCreated': 1 },
-    // });
 
     return successResponseData(
       res,
-      event,
+      responseData,
       STATUS_CREATED,
       COMMON_MSG.CREATED_SUCCESS.replace('##', 'Event')
     );
   } catch (error) {
-    console.error(`Registration error: ${error.message}`);
+    console.error(`createEventHandler error: ${error.message}`);
     return errorResponseWithoutData(
       res,
       STATUS_INTERNAL_SERVER_ERROR,
@@ -97,67 +114,81 @@ async function updateEventHandler(req, res) {
     if (!success) {
       return validationErrorResponseData(res, value.message);
     }
-    const event = await Models.Event.find({
+
+    const event = await Models.Event.findOne({
       _id: req.params.id,
       creator: req.userId,
     });
 
-    if (!event)
+    if (!event) {
       return errorResponseWithoutData(
         res,
         STATUS_NOT_FOUND,
         COMMON_MSG.NOT_FOUND.replace('##', 'Event')
       );
-
-    const imageUrls = [];
-
-    // Process file uploads
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        const fileUrl = await FileService.uploadFile(file, {
-          category: CATEGORY.EVENT,
-          subCategory: value.title.replace(/\s+/g, '-'),
-        });
-        imageUrls.push(fileUrl.url);
-      }
     }
-    // Prepare updated event data
-    const updatedEvent = {
-      title: value.title,
-      description: value.description,
-      location: value.location,
-      date: value.date,
-      startTime: value.startTime,
-      endTime: value.endTime,
-      seats: value.seats,
-      organizer: value.organizers,
-      price: value.price,
-      isPublished: value.isPublished || event.isPublished, // preserve existing if not provided
-      images: imageUrls.length > 0 ? imageUrls : event.images, // preserve existing if not provided
-    };
 
-    // Update the event in the database
-    const result = await Models.Event.updateOne(
-      { _id: req.params.id, creator: req.userId },
-      { $set: updatedEvent }
+    // Handle existing images - they will be full URLs from frontend
+    const keepImagePaths = JSON.parse(req.body.existingImages || '[]').map(
+      (url) => FileService.getObjectPathFromUrl(url)
     );
 
-    if (result.modifiedCount === 0) {
-      return errorResponseWithoutData(
-        res,
-        STATUS_BAD_REQUEST,
-        MSG_NO_CHANGES_MADE
-      );
+    // Delete removed images
+    const imagesToDelete = event.images.filter(
+      (path) => !keepImagePaths.includes(path)
+    );
+
+    for (const path of imagesToDelete) {
+      try {
+        await FileService.deleteFile(path);
+      } catch (error) {
+        console.error(`Failed to delete image ${path}:`, error);
+      }
     }
 
-    // return res.status(STATUS_SUCCESS).json({
-    //   success: true,
-    //   data: result,
-    //   message: COMMON_MSG.UPDATED_SUCCESS.replace('##', 'Event'),
-    // });
+    // Upload new images using event ID
+    const newImagePaths = [];
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const fileData = await FileService.uploadFile(file, {
+          category: CATEGORY.EVENT,
+          subCategory: event._id.toString(),
+        });
+        newImagePaths.push(fileData.objectPath);
+      }
+    }
+
+    // Combine kept and new image paths
+    const finalImagePaths = [...keepImagePaths, ...newImagePaths];
+
+    // Update event with single operation
+    const updatedEvent = await Models.Event.findByIdAndUpdate(
+      event._id,
+      {
+        title: value.title,
+        description: value.description,
+        images: finalImagePaths,
+        location: value.location,
+        date: value.date,
+        startTime: value.startTime,
+        endTime: value.endTime,
+        seats: value.seats,
+        organizer: value.organizers,
+        price: value.price,
+        isPublished: value.isPublished ?? event.isPublished,
+      },
+      { new: true }
+    );
+
+    // Prepare response with full URLs
+    const responseData = {
+      ...updatedEvent.toObject(),
+      images: updatedEvent.images.map((path) => FileService.getFullUrl(path)),
+    };
+
     return successResponseData(
       res,
-      result,
+      responseData,
       STATUS_SUCCESS,
       COMMON_MSG.UPDATED_SUCCESS.replace('##', 'Event')
     );
@@ -171,10 +202,10 @@ async function updateEventHandler(req, res) {
   }
 }
 
-// Delete Event
+// Delete Event Handler
 async function deleteEventHandler(req, res) {
   try {
-    const event = await Event.findOneAndDelete({
+    const event = await Models.Event.findOne({
       _id: req.params.id,
       creator: req.userId,
     });
@@ -186,11 +217,20 @@ async function deleteEventHandler(req, res) {
         COMMON_MSG.NOT_FOUND.replace('##', 'Event')
       );
     }
+    // Delete images from MinIO - we already have paths stored
+    if (event.images && event.images.length > 0) {
+      for (const imagePath of event.images) {
+        try {
+          await FileService.deleteFile(imagePath);
+        } catch (error) {
+          console.error(
+            `Failed to delete image from storage: ${error.message}`
+          );
+        }
+      }
+    }
 
-    // Decrement event count
-    // await Models.User.findByIdAndUpdate(req.user.id, {
-    //   $inc: { 'subscription.eventsCreated': -1 },
-    // });
+    await Models.Event.deleteOne({ _id: req.params.id, creator: req.userId });
 
     return successResponseWithoutData(
       res,
@@ -221,12 +261,14 @@ async function getUserCreatedEventsHandler(req, res) {
       .sort('-date')
       .populate('creator', 'email');
 
+    const transformedEvents = events.map(transformEventWithUrls);
+
     return successResponseData(
       res,
-      events,
+      transformedEvents,
       STATUS_SUCCESS,
       COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Events'),
-      (total = events.length)
+      { total: events.length }
     );
   } catch (error) {
     console.error(`getUserCreatedEventsHandler error: ${error.message}`);
@@ -241,11 +283,13 @@ async function getUserCreatedEventsHandler(req, res) {
 // Get Event Details
 async function getEventDetailsHandler(req, res) {
   try {
-    const events = await Models.Event.findById(req.params.id);
+    const event = await Models.Event.findById(req.params.id);
+
+    const transformedEvent = transformEventWithUrls(event);
 
     return successResponseData(
       res,
-      events,
+      transformedEvent,
       STATUS_SUCCESS,
       COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Events')
     );
@@ -269,9 +313,12 @@ async function getPublishedEventsHandler(req, res) {
       date: { $gte: today },
     }).sort('date');
 
+    // Transform events to include full image URLs
+    const transformedEvents = events.map(transformEventWithUrls);
+
     return successResponseData(
       res,
-      events,
+      transformedEvents,
       STATUS_SUCCESS,
       COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Events'),
       { total: events.length }
