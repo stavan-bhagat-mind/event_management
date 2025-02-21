@@ -161,8 +161,8 @@ const uploadFile = async (file, options = {}) => {
     );
 
     return {
-      objectPath, // Path to store in database
-      url: getFullUrl(objectPath), // Full URL for immediate use if needed
+      objectPath,
+      url: getFullUrl(objectPath),
       size: file.size,
       mimetype: file.mimetype,
       path: folderPath,

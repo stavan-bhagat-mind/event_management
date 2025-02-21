@@ -223,6 +223,7 @@ async function getUserDataHandler(req, res) {
   try {
     const userId = req.userId;
     const user = await Models.User.findById(userId);
+
     if (!user) {
       return errorResponseWithoutData(
         res,
@@ -241,7 +242,9 @@ async function getUserDataHandler(req, res) {
         contactNumber: user.contactNumber,
         userType: user.userType,
         password: user.password,
-        profilePictureUrl: user.profilePictureUrl,
+        profilePictureUrl: user.profilePictureUrl
+          ? FileService.getFullUrl(user.profilePictureUrl)
+          : null,
       },
       STATUS_SUCCESS,
       COMMON_MSG.FETCHED_SUCCESS.replace('##', USER)
@@ -375,9 +378,12 @@ async function updateUserProfileHandler(req, res) {
         category: CATEGORY.USER,
         subCategory: userId,
       });
-      updateFields.profilePictureUrl = fileData.url;
+      if (user.profilePictureUrl)
+        await FileService.deleteFile(user.profilePictureUrl);
+
+      updateFields.profilePictureUrl = fileData.objectPath;
       updateFields.metadata = {
-        object_name: fileData.objectName,
+        object_name: fileData.objectPath,
         bucket: process.env.MINIO_BUCKET,
       };
     }
@@ -558,15 +564,20 @@ async function deleteUser(req, res) {
     if (!email) {
       return res.status(400).json({ message: 'Email is required.' });
     }
-
-    // Delete the user with the specified email
-    const result = await Models.User.deleteOne({ email });
-
-    // Check if a user was deleted
-    if (result.deletedCount === 0) {
-      return res.status(404).json({ message: 'User  not found.' });
+    const user = await Models.User.findOne({ email: email });
+    if (!user) {
+      return errorResponseWithoutData(
+        res,
+        STATUS_BAD_REQUEST,
+        COMMON_MSG.NOT_FOUND.replace('##', USER)
+      );
     }
 
+    try {
+      await FileService.deleteFile(user.profilePictureUrl);
+    } catch (error) {
+      console.error(`Failed to delete image from storage: ${error.message}`);
+    }
     // Respond with a success message
     console.log(`user ${email} deleted`);
     return res.status(200).json({ message: 'User  deleted successfully.' });

@@ -20,10 +20,6 @@ const {
 } = require('../../../utils/common/messages');
 const { ROLE } = require('../../../utils/common/constants');
 const {
-  getObjectPathFromUrl,
-  getFullImageUrl,
-} = require('../../../helpers/helper');
-const {
   CATEGORY,
   STATUS_INTERNAL_SERVER_ERROR,
   STATUS_BAD_REQUEST,
