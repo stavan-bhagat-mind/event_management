@@ -572,14 +572,16 @@ async function deleteUser(req, res) {
         COMMON_MSG.NOT_FOUND.replace('##', USER)
       );
     }
-
-    try {
-      await FileService.deleteFile(user.profilePictureUrl);
-    } catch (error) {
-      console.error(`Failed to delete image from storage: ${error.message}`);
+    if (user.profilePictureUrl) {
+      try {
+        await FileService.deleteFile(user.profilePictureUrl);
+      } catch (error) {
+        console.error(`Failed to delete image from storage: ${error.message}`);
+      }
     }
     // Respond with a success message
     console.log(`user ${email} deleted`);
+    await Models.User.deleteOne({ email: email });
     return res.status(200).json({ message: 'User  deleted successfully.' });
   } catch (error) {
     console.log(error);

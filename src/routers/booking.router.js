@@ -5,7 +5,7 @@ const {
   paymentIntentCreationHandler,
   handleIAPPaymentHandler,
   handleStripeWebhookHandler,
-  validateQRCodeHandler
+  validateQRCodeHandler,
   //   cancelBookingHandler,
   //   getUserBookingsHandler
 } = require('../modules/booking/controller/booking.controller');

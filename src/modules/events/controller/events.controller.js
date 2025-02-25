@@ -305,7 +305,6 @@ async function getPublishedEventsHandler(req, res) {
     const today = new Date().toISOString().split('T')[0];
     const events = await Models.Event.find({
       isPublished: true,
-      // date: { $gte: new Date() },
       date: { $gte: today },
     }).sort('date');
 
@@ -329,6 +328,112 @@ async function getPublishedEventsHandler(req, res) {
   }
 }
 
+// ------------------------------------saved event-----------------------------------------
+
+// save Events
+async function saveEventHandler(req, res) {
+  try {
+    const userId = req.userId;
+    const { eventId } = req.body;
+
+    const event = await Models.Event.findById(eventId);
+
+    if (!event) {
+      return errorResponseWithoutData(
+        res,
+        STATUS_NOT_FOUND,
+        COMMON_MSG.NOT_FOUND.replace('##', 'Event')
+      );
+    }
+    const savedEvent = await Models.SavedEvent.create({
+      user: userId,
+      event: eventId,
+    });
+
+    return successResponseData(
+      res,
+      savedEvent,
+      STATUS_CREATED,
+      COMMON_MSG.CREATED_SUCCESS.replace('##', 'Saved Event')
+    );
+  } catch (error) {
+    console.error(`saveEventHandler error: ${error.message}`);
+    return errorResponseWithoutData(
+      res,
+      STATUS_INTERNAL_SERVER_ERROR,
+      MSG_INTERNAL_SERVER_ERROR
+    );
+  }
+}
+// removeSavedEventHandler
+async function removeSavedEventHandler(req, res) {
+  try {
+    const savedEvent = await Models.SavedEvent.findOne({
+      _id: req.params.id,
+      user: req.userId,
+    });
+
+    if (!savedEvent) {
+      return errorResponseWithoutData(
+        res,
+        STATUS_NOT_FOUND,
+        COMMON_MSG.NOT_FOUND.replace('##', 'Saved Event')
+      );
+    }
+
+    await Models.SavedEvent.deleteOne({
+      _id: req.params.id,
+      users: req.userId,
+    });
+
+    return successResponseWithoutData(
+      res,
+      STATUS_SUCCESS,
+      COMMON_MSG.REMOVED_SUCCESS.replace('##', 'Event')
+    );
+  } catch (error) {
+    console.error(`removeSavedEventHandler error: ${error.message}`);
+    return errorResponseWithoutData(
+      res,
+      STATUS_INTERNAL_SERVER_ERROR,
+      MSG_INTERNAL_SERVER_ERROR
+    );
+  }
+}
+
+// Get Saved Events Details
+async function getSavedEventsHandler(req, res) {
+  try {
+    const userId = req.userId;
+    const savedEvent = await Models.SavedEvent.find({
+      user: userId,
+    }).populate({
+      path: 'event',
+      model: 'Event',
+    });
+
+    if (!savedEvent) {
+      return errorResponseWithoutData(
+        res,
+        STATUS_NOT_FOUND,
+        COMMON_MSG.NOT_FOUND.replace('##', 'savedEvent')
+      );
+    }
+    return successResponseData(
+      res,
+      savedEvent,
+      STATUS_SUCCESS,
+      COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Events')
+    );
+  } catch (error) {
+    console.error(`getSavedEventsHandler error: ${error.message}`);
+    return errorResponseWithoutData(
+      res,
+      STATUS_INTERNAL_SERVER_ERROR,
+      MSG_INTERNAL_SERVER_ERROR
+    );
+  }
+}
 module.exports = {
   createEventHandler,
   updateEventHandler,
@@ -336,4 +441,7 @@ module.exports = {
   getEventDetailsHandler,
   getPublishedEventsHandler,
   getUserCreatedEventsHandler,
+  saveEventHandler,
+  removeSavedEventHandler,
+  getSavedEventsHandler,
 };

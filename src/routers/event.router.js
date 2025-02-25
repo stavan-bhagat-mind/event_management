@@ -1,14 +1,14 @@
 const eventRouter = require('express').Router();
 const {
   createEventHandler,
-  //   getEvent,
-  //   getEvents,
   updateEventHandler,
   getUserCreatedEventsHandler,
   getPublishedEventsHandler,
   deleteEventHandler,
   getEventDetailsHandler,
-  getPresignedUrlHandler,
+  saveEventHandler,
+  removeSavedEventHandler,
+  getSavedEventsHandler,
 } = require('../modules/events/controller/events.controller');
 const authentication = require('../middlewares/authentication.middleware');
 const { multipleUpload } = require('../config/multer.config');
@@ -32,5 +32,10 @@ eventRouter.get('/my-events', authentication, getUserCreatedEventsHandler);
 eventRouter.get('/upcoming-public', getPublishedEventsHandler);
 eventRouter.get('/:id', getEventDetailsHandler);
 eventRouter.delete('/:id', authentication, deleteEventHandler);
+
+// saved-events
+eventRouter.post('/save-event', authentication, saveEventHandler);
+eventRouter.get('/get-saved-events', authentication, getSavedEventsHandler);
+eventRouter.delete('/remove/:id', authentication, removeSavedEventHandler);
 
 module.exports = eventRouter;

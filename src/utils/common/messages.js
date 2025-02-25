@@ -7,6 +7,7 @@ module.exports = {
     VERIFIED_SUCCESS: '## verified successfully.',
     CLONE_SUCCESS: '## clone successfully.',
     READ_SUCCESS: '## mark as read successfully.',
+    REMOVED_SUCCESS: '## removed successfully.',
     LIST_NOT_FOUND: '## list not found.',
     DOES_NOT_EXIST: '## does not exist.',
     NOT_FOUND: '## not found.',

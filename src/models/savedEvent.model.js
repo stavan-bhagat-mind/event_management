@@ -18,4 +18,5 @@ const savedEventSchema = new mongoose.Schema({
 });
 
 savedEventSchema.index({ user: 1, event: 1 }, { unique: true });
-module.exports = mongoose.model('Booking', bookingSchema);
+module.exports = mongoose.model('savedEvents', savedEventSchema);
+  
