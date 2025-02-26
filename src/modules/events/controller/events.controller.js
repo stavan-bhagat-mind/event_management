@@ -168,7 +168,9 @@ async function updateEventHandler(req, res) {
         date: value.date,
         startTime: value.startTime,
         endTime: value.endTime,
-        seats: value.seats,
+        seats: {
+          total: value.seats,
+        },
         organizer: value.organizers,
         price: value.price,
         isPublished: value.isPublished ?? event.isPublished,
@@ -353,10 +355,17 @@ async function saveEventHandler(req, res) {
     return successResponseData(
       res,
       savedEvent,
-      STATUS_CREATED,
-      COMMON_MSG.CREATED_SUCCESS.replace('##', 'Saved Event')
+      STATUS_SUCCESS,
+      COMMON_MSG.ADDED_SUCCESS.replace('##', 'Event')
     );
   } catch (error) {
+    if (error.code === 11000) {
+      return errorResponseWithoutData(
+        res,
+        STATUS_BAD_REQUEST,
+        COMMON_MSG.ALREADY_EXISTS.replace('##', 'Event')
+      );
+    }
     console.error(`saveEventHandler error: ${error.message}`);
     return errorResponseWithoutData(
       res,
@@ -383,7 +392,7 @@ async function removeSavedEventHandler(req, res) {
 
     await Models.SavedEvent.deleteOne({
       _id: req.params.id,
-      users: req.userId,
+      user: req.userId,
     });
 
     return successResponseWithoutData(
@@ -423,7 +432,8 @@ async function getSavedEventsHandler(req, res) {
       res,
       savedEvent,
       STATUS_SUCCESS,
-      COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Events')
+      COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Events'),
+      { total: savedEvent.length }
     );
   } catch (error) {
     console.error(`getSavedEventsHandler error: ${error.message}`);

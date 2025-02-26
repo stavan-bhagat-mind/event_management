@@ -2,6 +2,7 @@ const express = require('express');
 const database = require('./src/config/database');
 const indexRoutes = require('./src/routers/index.router');
 const { initializeMinIO } = require('./src/services/file.service');
+const cronJobs = require('./src/crons/index.cron');
 
 // Initialize database and MinIO
 database();

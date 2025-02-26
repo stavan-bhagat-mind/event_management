@@ -1,7 +1,6 @@
 const Models = require('../../../models/index');
 require('dotenv').config();
 const { generateQRCode } = require('../../../helpers/helper');
-const { COMMON_MSG } = require('../../../utils/common/messages');
 
 const {
   MSG_INTERNAL_SERVER_ERROR,
@@ -19,75 +18,75 @@ const {
 } = require('../../../utils/common/constants');
 
 // Create a new booking
-const createBookingHandler = async (req, res) => {
-  try {
-    const { eventId, seatsBooked, totalAmount, paymentData } = req.body;
-    const paymentInfo = {
-      ...paymentData,
-      created: new Date(paymentData.created * 1000),
-    };
-    const userId = req.userId;
+// const createBookingHandler = async (req, res) => {
+//   try {
+//     const { eventId, seatsBooked, totalAmount, paymentData } = req.body;
+//     const paymentInfo = {
+//       ...paymentData,
+//       created: new Date(paymentData.created * 1000),
+//     };
+//     const userId = req.userId;
 
-    // Validate input
-    if (!eventId || !seatsBooked || seatsBooked <= 0) {
-      return res.status(STATUS_BAD_REQUEST).json({
-        success: false,
-        message: 'Invalid input: eventId and seatsBooked are required',
-      });
-    }
+//     // Validate input
+//     if (!eventId || !seatsBooked || seatsBooked <= 0) {
+//       return res.status(STATUS_BAD_REQUEST).json({
+//         success: false,
+//         message: 'Invalid input: eventId and seatsBooked are required',
+//       });
+//     }
 
-    // Check if event exists and is published
-    const event = await Event.findById(eventId);
-    if (!event || !event.isPublished) {
-      return res.status(STATUS_NOT_FOUND).json({
-        success: false,
-        message: 'Event not found or not published',
-      });
-    }
-    // Check seat availability
+//     // Check if event exists and is published
+//     const event = await Event.findById(eventId);
+//     if (!event || !event.isPublished) {
+//       return res.status(STATUS_NOT_FOUND).json({
+//         success: false,
+//         message: 'Event not found or not published',
+//       });
+//     }
+//     // Check seat availability
 
-    if (event.seats.booked + seatsBooked > event.seats.total) {
-      return res.status(STATUS_BAD_REQUEST).json({
-        success: false,
-        message: 'Not enough seats available',
-      });
-    }
+//     if (event.seats.booked + seatsBooked > event.seats.total) {
+//       return res.status(STATUS_BAD_REQUEST).json({
+//         success: false,
+//         message: 'Not enough seats available',
+//       });
+//     }
 
-    // Calculate total price
-    // const totalPrice = event.price * seatsBooked;
+//     // Calculate total price
+//     // const totalPrice = event.price * seatsBooked;
 
-    // Generate QR code
-    // const qrCode = await generateQRCode(`${eventId}-${userId}-${Date.now()}`);
+//     // Generate QR code
+//     // const qrCode = await generateQRCode(`${eventId}-${userId}-${Date.now()}`);
 
-    // Create booking
-    const booking = new Models.Booking({
-      event: eventId,
-      user: userId,
-      seatsBooked,
-      totalPrice,
-      qrCode,
-    });
+//     // Create booking
+//     const booking = new Models.Booking({
+//       event: eventId,
+//       user: userId,
+//       seatsBooked,
+//       totalPrice,
+//       qrCode,
+//     });
 
-    // Update event's booked seats
-    event.seats.booked += seatsBooked;
-    await event.save();
+//     // Update event's booked seats
+//     event.seats.booked += seatsBooked;
+//     await event.save();
 
-    // Save booking
-    await booking.save();
+//     // Save booking
+//     await booking.save();
 
-    res.status(STATUS_SUCCESS).json({
-      success: true,
-      data: booking,
-      message: COMMON_MSG.CREATED_SUCCESS.replace('##', 'Booking'),
-    });
-  } catch (error) {
-    console.error(`createBooking error: ${error.message}`);
-    res.status(STATUS_INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: MSG_INTERNAL_SERVER_ERROR,
-    });
-  }
-};
+//     res.status(STATUS_SUCCESS).json({
+//       success: true,
+//       data: booking,
+//       message: COMMON_MSG.CREATED_SUCCESS.replace('##', 'Booking'),
+//     });
+//   } catch (error) {
+//     console.error(`createBooking error: ${error.message}`);
+//     res.status(STATUS_INTERNAL_SERVER_ERROR).json({
+//       success: false,
+//       message: MSG_INTERNAL_SERVER_ERROR,
+//     });
+//   }
+// };
 
 // Get Booking Details
 const getBookingDetailsHandler = async (req, res) => {
@@ -121,7 +120,7 @@ const getBookingDetailsHandler = async (req, res) => {
 const validateQRCodeHandler = async (req, res) => {};
 
 module.exports = {
-  createBookingHandler,
+  // createBookingHandler,
   getBookingDetailsHandler,
   validateQRCodeHandler,
 };

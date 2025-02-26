@@ -4,6 +4,7 @@ module.exports = {
     CREATED_SUCCESS: '## created successfully.',
     UPDATED_SUCCESS: '## updated successfully.',
     DELETED_SUCCESS: '## deleted successfully.',
+    ADDED_SUCCESS: '## added successfully.',
     VERIFIED_SUCCESS: '## verified successfully.',
     CLONE_SUCCESS: '## clone successfully.',
     READ_SUCCESS: '## mark as read successfully.',
@@ -16,6 +17,7 @@ module.exports = {
     ALREADY_VERIFIED: '## Already verified.',
     INVALID: 'Invalid ##.',
     NOT_VERIFIED: '## not verified.',
+    NOT_AVAILABLE: '## not available.',
   },
   // EMAIL
   EMAIL: {

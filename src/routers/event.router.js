@@ -30,12 +30,12 @@ eventRouter.patch(
 
 eventRouter.get('/my-events', authentication, getUserCreatedEventsHandler);
 eventRouter.get('/upcoming-public', getPublishedEventsHandler);
-eventRouter.get('/:id', getEventDetailsHandler);
-eventRouter.delete('/:id', authentication, deleteEventHandler);
-
 // saved-events
 eventRouter.post('/save-event', authentication, saveEventHandler);
 eventRouter.get('/get-saved-events', authentication, getSavedEventsHandler);
 eventRouter.delete('/remove/:id', authentication, removeSavedEventHandler);
+// generic parameter route
+eventRouter.get('/:id', getEventDetailsHandler);
+eventRouter.delete('/:id', authentication, deleteEventHandler);
 
 module.exports = eventRouter;

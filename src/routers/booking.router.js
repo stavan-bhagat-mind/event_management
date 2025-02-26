@@ -13,12 +13,6 @@ const authentication = require('../middlewares/authentication.middleware');
 
 bookingRouter.post('/create', authentication, createBookingHandler);
 bookingRouter.get('/:id', getBookingDetailsHandler);
-bookingRouter.post('/create-payment-intent', paymentIntentCreationHandler);
-bookingRouter.post(
-  '/webhook',
-  express.raw({ type: 'application/json' }),
-  handleStripeWebhookHandler
-);
 
 // todo
 // bookingRouter.post('/validate-qr', validateQRCodeHandler);

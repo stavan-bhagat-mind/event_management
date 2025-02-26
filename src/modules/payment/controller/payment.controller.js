@@ -1,13 +1,17 @@
 const Models = require('../../../models/index');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 require('dotenv').config();
 const { generateQRCode } = require('../../../helpers/helper');
-const { COMMON_MSG } = require('../../../utils/common/messages');
-
+const {
+  successResponseData,
+  errorResponseData,
+  errorResponseWithoutData,
+  validationErrorResponseData,
+  successResponseWithoutData,
+} = require('../../../utils/response');
 const {
   MSG_INTERNAL_SERVER_ERROR,
   COMMON_MSG,
-  INACTIVE_USER,
-  MSG_NO_CHANGES_MADE,
 } = require('../../../utils/common/messages');
 const {
   CATEGORY,
@@ -16,41 +20,56 @@ const {
   STATUS_BAD_REQUEST,
   STATUS_NOT_FOUND,
   STATUS_SUCCESS,
+  STATUS_CREATED,
 } = require('../../../utils/common/constants');
 
 // payment - ( intent creation )
-exports.paymentIntentCreationHandler = async (req, res) => {
+async function paymentIntentCreationHandler(req, res) {
   try {
-    const { amount, currency, eventId, seatsBooked, userId } = req.body;
+    const userId = req.userId;
+    const { amount, currency, eventId, seatsBooked } = req.body;
 
-    // 1. Validate event and seats first
+    // 1. Validate event and seats
     const event = await Models.Event.findById(eventId);
     if (!event || !event.isPublished) {
-      return res.status(400).json({
-        success: false,
-        message: 'Event not found or not published',
-      });
+      return errorResponseWithoutData(
+        res,
+        STATUS_NOT_FOUND,
+        COMMON_MSG.NOT_FOUND.replace('##', 'Event')
+      );
     }
 
     if (event.seats.booked + seatsBooked > event.seats.total) {
-      return res.status(400).json({
-        success: false,
-        message: 'Not enough seats available',
-      });
+      return errorResponseWithoutData(
+        res,
+        STATUS_NOT_FOUND,
+        COMMON_MSG.NOT_AVAILABLE.replace('##', 'Seats')
+      );
     }
-
+    if (event.price * seatsBooked !== Number(amount)) {
+      return errorResponseWithoutData(
+        res,
+        STATUS_BAD_REQUEST,
+        COMMON_MSG.INVALID.replace('##', 'Amount')
+      );
+    }
     // 2. Create temporary booking
     const booking = new Models.Booking({
-      event: eventId,
-      user: userId,
+      eventId: eventId,
+      userId: userId,
       seatsBooked,
       totalPrice: amount,
       status: 'PENDING',
     });
     await booking.save();
 
+    // Add this block to update the event's seat count
+    await Models.Event.findByIdAndUpdate(eventId, {
+      $inc: { 'seats.booked': seatsBooked },
+    });
+
     // 3. Create payment record
-    const payment = new Models.Payment({
+    const payment = await Models.Payment.create({
       bookingId: booking._id,
       amount,
       currency,
@@ -62,7 +81,6 @@ exports.paymentIntentCreationHandler = async (req, res) => {
         seatsBooked: seatsBooked.toString(),
       },
     });
-    await payment.save();
 
     // 4. Update booking with payment reference
     booking.paymentId = payment._id;
@@ -85,22 +103,27 @@ exports.paymentIntentCreationHandler = async (req, res) => {
     payment.paymentIntentId = paymentIntent.id;
     await payment.save();
 
-    res.status(STATUS_SUCCESS).json({
-      success: true,
-      clientSecret: paymentIntent.client_secret,
-      bookingId: booking._id,
-      paymentId: payment._id,
-    });
+    return successResponseData(
+      res,
+      {
+        clientSecret: paymentIntent.client_secret,
+        bookingId: booking._id,
+        paymentId: payment._id,
+      },
+      STATUS_CREATED,
+      COMMON_MSG.CREATED_SUCCESS.replace('##', 'Payment intent')
+    );
   } catch (error) {
     console.error(`paymentIntentCreationHandler error: ${error.message}`);
-    res.status(STATUS_INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: MSG_INTERNAL_SERVER_ERROR,
-    });
+    return errorResponseWithoutData(
+      res,
+      STATUS_INTERNAL_SERVER_ERROR,
+      MSG_INTERNAL_SERVER_ERROR
+    );
   }
-};
+}
 
-//stripe payment response handler( called by stripe )
+// Stripe payment response handler (called by stripe)
 const handleStripeWebhookHandler = async (req, res) => {
   const sig = req.headers['stripe-signature'];
   let event;
@@ -127,30 +150,39 @@ const handleStripeWebhookHandler = async (req, res) => {
   }
 };
 
-// successful payment function
+// Successful payment function
 const handleSuccessfulPayment = async (paymentIntent) => {
-  const { bookingId, paymentId } = paymentIntent.metadata;
+  const { bookingId, paymentId, eventId } = paymentIntent.metadata;
 
-  // 1. Update payment status
-  await Payment.findByIdAndUpdate(paymentId, {
-    status: 'COMPLETED',
-    transactionId: paymentIntent.id,
-    updatedAt: new Date(),
-  });
+  try {
+    // 1. Update payment status
+    await Models.Payment.findByIdAndUpdate(paymentId, {
+      status: 'COMPLETED',
+      transactionId: paymentIntent.id,
+      updatedAt: new Date(),
+    });
 
-  // 2. Confirm booking
-  await Booking.findByIdAndUpdate(bookingId, {
-    status: 'CONFIRMED',
-  });
+    // 2. Confirm booking
+    await Models.Booking.findByIdAndUpdate(bookingId, {
+      status: 'CONFIRMED',
+    });
 
-  // 3. Generate QR code
-  const qrCode = await generateQRCode(`${bookingId}-${Date.now()}`);
-  await Booking.findByIdAndUpdate(bookingId, { qrCode });
+    // 3. Generate QR code
+    const qrCode = await generateQRCode(`${bookingId}-${Date.now()}`);
+    await Models.Booking.findByIdAndUpdate(bookingId, { qrCode });
+
+    // 4. Optional: Send confirmation email to user
+    // const booking = await Models.Booking.findById(bookingId).populate('userId');
+    // await sendConfirmationEmail(booking.userId.email, booking);
+  } catch (error) {
+    console.error('Successful payment handling error:', error);
+    // Consider implementing a retry mechanism or alerting system
+  }
 };
 
-// failed payment function
+// Failed payment function
 const handleFailedPayment = async (paymentIntent) => {
-  const { bookingId, paymentId } = paymentIntent.metadata;
+  const { bookingId, paymentId, eventId } = paymentIntent.metadata;
 
   try {
     // 1. Update payment status with failure details
@@ -158,32 +190,37 @@ const handleFailedPayment = async (paymentIntent) => {
       status: 'FAILED',
       transactionId: paymentIntent.id,
       updatedAt: new Date(),
-      metadata: {
+      errorDetails: {
         error_code: paymentIntent.last_payment_error?.code,
         error_message: paymentIntent.last_payment_error?.message,
         failure_reason: paymentIntent.last_payment_error?.decline_code,
       },
     });
 
-    // 2. Update booking status to failed/cancelled
-    await Models.Booking.findByIdAndUpdate(bookingId, {
-      status: 'CANCELLED',
-      metadata: {
-        cancellation_reason: 'payment_failed',
-        cancelled_at: new Date(),
-      },
-    });
-
-    // 3. Release the held seats
-    const booking = await Models.Booking.findById(bookingId).populate('event');
-    if (booking && booking.event) {
-      booking.event.seats.booked -= booking.seatsBooked;
-      await booking.event.save();
+    // 2. Get booking to check seats before updating
+    const booking = await Models.Booking.findById(bookingId);
+    if (!booking) {
+      console.error(`Booking not found: ${bookingId}`);
+      return;
     }
 
-    // Optional: Notify user about payment failure
+    // 3. Update booking status to cancelled
+    booking.status = 'CANCELLED';
+    booking.cancellationReason = 'payment_failed';
+    booking.cancelledAt = new Date();
+    await booking.save();
+
+    // 4. Release the held seats
+    await Models.Event.findByIdAndUpdate(eventId, {
+      $inc: { 'seats.booked': -booking.seatsBooked },
+    });
+
+    // 5. Optional: Notify user about payment failure
+    // const user = await Models.User.findById(booking.userId);
+    // await sendPaymentFailureEmail(user.email, booking);
   } catch (error) {
     console.error('Failed payment handling error:', error);
+    // Implement alerting system for manual intervention
   }
 };
 
@@ -252,8 +289,41 @@ const handleFailedPayment = async (paymentIntent) => {
 //   }
 // }
 
+// test-----------------
+async function confirmPaymentHandler(req, res) {
+  try {
+   const paymentIntentId = req.body.paymentIntentId;
+    // Use a test card number for confirmation
+    const paymentMethod = await stripe.paymentMethods.create({
+      type: 'card',
+      card: {
+        number: '4242424242424242', // Test card number
+        exp_month: 12, // Test expiration month
+        exp_year: 2025, // Test expiration year
+        cvc: '123', // Test CVC
+      },
+    });
+
+    // Confirm the payment intent with the created payment method
+    const paymentIntent = await stripe.paymentIntents.confirm(paymentIntentId, {
+      payment_method: paymentMethod.id,
+    });
+
+    console.log('Payment Intent Confirmed:', paymentIntent);
+  } catch (error) {
+    console.error('Error confirming payment intent:', error);
+  }
+}
+
+// Example usage
+// (async () => {
+//   const paymentIntentId = await createPaymentIntent();
+//   await confirmPaymentHandler(paymentIntentId);
+// })();
+
 module.exports = {
   paymentIntentCreationHandler,
-  handleIAPPaymentHandler,
+  // handleIAPPaymentHandler,
   handleStripeWebhookHandler,
+  confirmPaymentHandler,
 };

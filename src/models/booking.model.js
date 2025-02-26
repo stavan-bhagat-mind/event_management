@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const bookingSchema = new mongoose.Schema(
-  { 
+  {
     eventId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Event',
@@ -22,7 +22,7 @@ const bookingSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['PENDING', 'CONFIRMED', 'CANCELLED'],
+      enum: ['PENDING', 'CONFIRMED', 'CANCELLED', 'EXPIRED'],
       default: 'PENDING',
     },
     qrCode: {
@@ -50,5 +50,5 @@ const bookingSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-bookingSchema.index({ qrCode: 1 }, { unique: true });
+bookingSchema.index({ qrCode: 1, eventId: 1 });
 module.exports = mongoose.model('Booking', bookingSchema);

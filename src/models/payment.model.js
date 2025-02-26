@@ -13,7 +13,7 @@ const paymentSchema = new mongoose.Schema(
     },
     transactionId: {
       type: String,
-      required: true, // Universal ID for both Stripe and IAP
+      required: false, // Universal ID for both Stripe and IAP
     },
     amount: {
       type: Number,
@@ -49,4 +49,4 @@ const paymentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const Payment = mongoose.model('Payment', paymentSchema);
+module.exports = mongoose.model('Payment', paymentSchema);
