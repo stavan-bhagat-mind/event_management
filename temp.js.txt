@@ -348,3 +348,7 @@ uploadFile();
             "updatedAt": "2025-02-20T09:26:39.261Z",
             "__v": 0
         }
+
+
+        -----
+        Your webhook signing secret is whsec_f232fb9db00d1139b078e4ddde4f96db2957777517ea39aa131bde0b27c00d90 (^C to quit)

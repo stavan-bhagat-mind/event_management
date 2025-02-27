@@ -21,7 +21,7 @@ const Models = require('../models/index');
 // Run every minute
 cron.schedule('* * * * *', async () => {
   try {
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const fiveMinutesAgo = new Date(Date.now() - 8 * 60 * 1000);
     
     // Find bookings that need to be expired
     const pendingBookings = await Models.Booking.find({

@@ -3,7 +3,7 @@ const express = require('express');
 const {
   paymentIntentCreationHandler,
   handleStripeWebhookHandler,
-  confirmPaymentHandler
+  confirmPaymentHandler,
 } = require('../modules/payment/controller/payment.controller');
 const authentication = require('../middlewares/authentication.middleware');
 
@@ -12,12 +12,8 @@ paymentRouter.post(
   authentication,
   paymentIntentCreationHandler
 );
-paymentRouter.post(
-  '/webhook',
-  express.raw({ type: 'application/json' }),
-  handleStripeWebhookHandler
-);
+paymentRouter.post('/webhook', handleStripeWebhookHandler);
 
 // for test only
-paymentRouter.get('/test-payment',confirmPaymentHandler)
+paymentRouter.post('/test-payment', confirmPaymentHandler);
 module.exports = paymentRouter;

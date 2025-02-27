@@ -109,6 +109,7 @@ async function paymentIntentCreationHandler(req, res) {
         clientSecret: paymentIntent.client_secret,
         bookingId: booking._id,
         paymentId: payment._id,
+        paymentIntentId: paymentIntent.id,
       },
       STATUS_CREATED,
       COMMON_MSG.CREATED_SUCCESS.replace('##', 'Payment intent')
@@ -137,6 +138,7 @@ const handleStripeWebhookHandler = async (req, res) => {
 
     switch (event.type) {
       case 'payment_intent.succeeded':
+        console.log('--edo---', event.data.object);
         await handleSuccessfulPayment(event.data.object);
         break;
       case 'payment_intent.payment_failed':
@@ -156,14 +158,14 @@ const handleSuccessfulPayment = async (paymentIntent) => {
 
   try {
     // 1. Update payment status
-    await Models.Payment.findByIdAndUpdate(paymentId, {
+    const result = await Models.Payment.findByIdAndUpdate(paymentId, {
       status: 'COMPLETED',
       transactionId: paymentIntent.id,
       updatedAt: new Date(),
     });
 
     // 2. Confirm booking
-    await Models.Booking.findByIdAndUpdate(bookingId, {
+    const res = await Models.Booking.findByIdAndUpdate(bookingId, {
       status: 'CONFIRMED',
     });
 
@@ -292,24 +294,19 @@ const handleFailedPayment = async (paymentIntent) => {
 // test-----------------
 async function confirmPaymentHandler(req, res) {
   try {
-   const paymentIntentId = req.body.paymentIntentId;
+    const paymentIntentId = req.body.paymentIntentId;
     // Use a test card number for confirmation
-    const paymentMethod = await stripe.paymentMethods.create({
-      type: 'card',
-      card: {
-        number: '4242424242424242', // Test card number
-        exp_month: 12, // Test expiration month
-        exp_year: 2025, // Test expiration year
-        cvc: '123', // Test CVC
-      },
-    });
 
-    // Confirm the payment intent with the created payment method
+    // // Confirm the payment intent with the created payment method
+    // const paymentIntent = await stripe.paymentIntents.confirm(paymentIntentId, {
+    //   payment_method: paymentMethod.id,
+    // });
     const paymentIntent = await stripe.paymentIntents.confirm(paymentIntentId, {
-      payment_method: paymentMethod.id,
+      payment_method: 'pm_card_visa', // Test payment method token
     });
 
     console.log('Payment Intent Confirmed:', paymentIntent);
+    res.json({ success: true, paymentIntent });
   } catch (error) {
     console.error('Error confirming payment intent:', error);
   }
