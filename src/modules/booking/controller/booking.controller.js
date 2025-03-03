@@ -1,7 +1,13 @@
 const Models = require('../../../models/index');
 require('dotenv').config();
 const { generateQRCode } = require('../../../helpers/helper');
-
+const {
+  successResponseData,
+  errorResponseData,
+  errorResponseWithoutData,
+  validationErrorResponseData,
+  successResponseWithoutData,
+} = require('../../../utils/response');
 const {
   MSG_INTERNAL_SERVER_ERROR,
   COMMON_MSG,
@@ -92,29 +98,75 @@ const {
 const getBookingDetailsHandler = async (req, res) => {
   try {
     const booking = await Models.Booking.findById(req.params.id)
-      .populate('event', 'title date location')
-      .populate('user', 'email name');
-
+      .select('seatsBooked totalPrice status qrCode validationStatus')
+      .populate({
+        path: 'event',
+        select: 'title date location price startTime',
+      })
+      .populate({ path: 'user', select: 'firstName lastName contactNumber' })
+      .populate({ path: 'payment', select: 'transactionId status' });
     if (!booking) {
-      return res.status(STATUS_NOT_FOUND).json({
-        success: false,
-        message: COMMON_MSG.NOT_FOUND.replace('##', 'Booking'),
-      });
+      return errorResponseWithoutData(
+        res,
+        STATUS_NOT_FOUND,
+        COMMON_MSG.NOT_FOUND.replace('##', 'Booking')
+      );
     }
 
-    res.status(STATUS_SUCCESS).json({
-      success: true,
-      data: booking,
-    });
+    return successResponseData(
+      res,
+      booking,
+      STATUS_SUCCESS,
+      COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Booking'),
+      { total: booking.length }
+    );
   } catch (error) {
     console.error(`getBookingDetails error: ${error.message}`);
-    res.status(STATUS_INTERNAL_SERVER_ERROR).json({
-      success: false,
-      message: MSG_INTERNAL_SERVER_ERROR,
-    });
+    return errorResponseWithoutData(
+      res,
+      STATUS_INTERNAL_SERVER_ERROR,
+      MSG_INTERNAL_SERVER_ERROR
+    );
   }
 };
+// Get All Booking List
+const getBookingListHandler = async (req, res) => {
+  try {
+    const booking = await Models.Booking.find({ user: req.userId })
+      .select('seatsBooked totalPrice status')
+      .populate({
+        path: 'event',
+        select: 'title date location price',
+      })
+      .populate({ path: 'user', select: 'firstName lastName' })
+      .populate({
+        path: 'payment',
+        select: 'transactionId status',
+      });
+    if (!booking) {
+      return errorResponseWithoutData(
+        res,
+        STATUS_NOT_FOUND,
+        COMMON_MSG.NOT_FOUND.replace('##', 'Booking')
+      );
+    }
 
+    return successResponseData(
+      res,
+      booking,
+      STATUS_SUCCESS,
+      COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Booking'),
+      { total: booking.length }
+    );
+  } catch (error) {
+    console.error(`getBookingListHandler error: ${error.message}`);
+    return errorResponseWithoutData(
+      res,
+      STATUS_INTERNAL_SERVER_ERROR,
+      MSG_INTERNAL_SERVER_ERROR
+    );
+  }
+};
 // validate qr for the event
 
 const validateQRCodeHandler = async (req, res) => {};
@@ -123,4 +175,5 @@ module.exports = {
   // createBookingHandler,
   getBookingDetailsHandler,
   validateQRCodeHandler,
+  getBookingListHandler,
 };

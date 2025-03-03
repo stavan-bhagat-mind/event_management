@@ -39,15 +39,15 @@ cron.schedule('* * * * *', async () => {
         await booking.save();
         
         // Update payment status
-        if (booking.paymentId) {
+        if (booking.payment) {
           await Models.Payment.findByIdAndUpdate(
-            booking.paymentId,
+            booking.payment,
             { $set: { status: 'FAILED' } }
           );
           
           // If you're using Stripe and want to cancel the payment intent
           try {
-            const payment = await Models.Payment.findById(booking.paymentId);
+            const payment = await Models.Payment.findById(booking.payment);
             if (payment && payment.paymentIntentId) {
               // Cancel the Stripe payment intent if it exists and isn't already completed
               const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
@@ -61,7 +61,7 @@ cron.schedule('* * * * *', async () => {
         
         // Update event's seat count
         await Models.Event.findByIdAndUpdate(
-          booking.eventId,
+          booking.event,
           { $inc: { 'seats.booked': -booking.seatsBooked } }
         );
       }

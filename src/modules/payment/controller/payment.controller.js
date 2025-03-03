@@ -55,8 +55,8 @@ async function paymentIntentCreationHandler(req, res) {
     }
     // 2. Create temporary booking
     const booking = new Models.Booking({
-      eventId: eventId,
-      userId: userId,
+      event: eventId,
+      user: userId,
       seatsBooked,
       totalPrice: amount,
       status: 'PENDING',
@@ -70,7 +70,7 @@ async function paymentIntentCreationHandler(req, res) {
 
     // 3. Create payment record
     const payment = await Models.Payment.create({
-      bookingId: booking._id,
+      booking: booking._id,
       amount,
       currency,
       paymentMethod: 'STRIPE',
@@ -83,7 +83,7 @@ async function paymentIntentCreationHandler(req, res) {
     });
 
     // 4. Update booking with payment reference
-    booking.paymentId = payment._id;
+    booking.payment = payment._id;
     await booking.save();
 
     // 5. Create Stripe payment intent
@@ -107,9 +107,9 @@ async function paymentIntentCreationHandler(req, res) {
       res,
       {
         clientSecret: paymentIntent.client_secret,
-        bookingId: booking._id,
-        paymentId: payment._id,
-        paymentIntentId: paymentIntent.id,
+        booking: booking._id,
+        payment: payment._id,
+        paymentIntent: paymentIntent.id,
       },
       STATUS_CREATED,
       COMMON_MSG.CREATED_SUCCESS.replace('##', 'Payment intent')
@@ -193,7 +193,7 @@ const handleFailedPayment = async (paymentIntent) => {
       transactionId: paymentIntent.id,
       updatedAt: new Date(),
       errorDetails: {
-        error_code: paymentIntent.last_payment_error?.code,
+        error_code:  paymentIntent.last_payment_error?.code,
         error_message: paymentIntent.last_payment_error?.message,
         failure_reason: paymentIntent.last_payment_error?.decline_code,
       },

@@ -2,12 +2,12 @@ const mongoose = require('mongoose');
 
 const bookingSchema = new mongoose.Schema(
   {
-    eventId: {
+    event: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Event',
       required: true,
     },
-    userId: {
+    user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
@@ -39,7 +39,7 @@ const bookingSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    paymentId: {
+    payment: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Payment',
     },
@@ -50,5 +50,5 @@ const bookingSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-bookingSchema.index({ qrCode: 1, eventId: 1 });
+bookingSchema.index({ eventId: 1, userId: 1 });
 module.exports = mongoose.model('Booking', bookingSchema);
