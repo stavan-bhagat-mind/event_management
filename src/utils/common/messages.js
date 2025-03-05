@@ -49,7 +49,8 @@ module.exports = {
   // email-Messages
   MSG_VERIFY_EMAIL: 'Please verify your email address.',
   MSG_RESET_PASSWORD_EMAIL_SENT: 'Reset password email sent successfully.',
-
+  MSG_MODIFICATION_RESTRICTED:
+    'Cannot ##, because there are existing @@.',
   // http-Messages
   MSG_SUCCESS: 'Operation completed successfully.',
   MSG_CREATED: 'Resource created successfully.',

@@ -1,4 +1,6 @@
 const Models = require('../../../models/index');
+const mongoose = require('mongoose');
+const { v4: uuidv4 } = require('uuid');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 require('dotenv').config();
 const { generateQRCode } = require('../../../helpers/helper');
@@ -20,111 +22,191 @@ const {
   STATUS_BAD_REQUEST,
   STATUS_NOT_FOUND,
   STATUS_SUCCESS,
+  STATUS_STATUS_CONFLICT,
   STATUS_CREATED,
 } = require('../../../utils/common/constants');
 
-// payment - ( intent creation )
+// payment intent creation atomic update
 async function paymentIntentCreationHandler(req, res) {
+  // Start the session and begin transaction before any database operations
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const userId = req.userId;
     const { amount, currency, eventId, seatsBooked } = req.body;
+    console.log(req.body);
+    // Generate a unique, deterministic idempotency key
+    const idempotencyKey = `${userId}-${eventId}-${amount}-${seatsBooked}-${Date.now()}`;
 
-    // 1. Validate event and seats
-    const event = await Models.Event.findById(eventId);
+    // 1. Find the event with the current version
+    const event = await Models.Event.findById(eventId).session(session);
     if (!event || !event.isPublished) {
-      return errorResponseWithoutData(
-        res,
-        STATUS_NOT_FOUND,
-        COMMON_MSG.NOT_FOUND.replace('##', 'Event')
-      );
+      throw new Error('Event not found or not published');
     }
 
-    if (event.seats.booked + seatsBooked > event.seats.total) {
-      return errorResponseWithoutData(
-        res,
-        STATUS_NOT_FOUND,
-        COMMON_MSG.NOT_AVAILABLE.replace('##', 'Seats')
-      );
+    // 2. Check seat availability
+    if (event.seats.booked + Number(seatsBooked) > event.seats.total) {
+      throw new Error('Not enough seats available');
     }
+
+    // 3. Atomic update with version check
+    const updatedEvent = await Models.Event.findOneAndUpdate(
+      {
+        _id: eventId,
+        version: event.version, // Ensure no concurrent modifications
+      },
+      {
+        $inc: {
+          'seats.booked': Number(seatsBooked),
+          version: 1, // Increment version
+        },
+      },
+      { new: true, session }
+    );
+
+    if (!updatedEvent) {
+      throw new Error('Booking failed. Seats may have been taken.');
+    }
+
+    // 4. Verify price calculation
     if (event.price * seatsBooked !== Number(amount)) {
-      return errorResponseWithoutData(
-        res,
-        STATUS_BAD_REQUEST,
-        COMMON_MSG.INVALID.replace('##', 'Amount')
-      );
+      throw new Error('Invalid booking amount');
     }
-    // 2. Create temporary booking
-    const booking = new Models.Booking({
-      event: eventId,
-      user: userId,
-      seatsBooked,
-      totalPrice: amount,
-      status: 'PENDING',
-    });
-    await booking.save();
 
-    // Add this block to update the event's seat count
-    await Models.Event.findByIdAndUpdate(eventId, {
-      $inc: { 'seats.booked': seatsBooked },
-    });
+    // 5. Create booking with expiration
+    const expiryTime = new Date(Date.now() + 7 * 60 * 1000); // 7 minutes
+    const booking = await Models.Booking.create(
+      [
+        {
+          event: eventId,
+          user: userId,
+          seatsBooked: Number(seatsBooked),
+          totalPrice: Number(amount),
+          status: 'PENDING',
+          expiresAt: expiryTime,
+          idempotencyKey,
+        },
+      ],
+      { session }
+    );
 
-    // 3. Create payment record
-    const payment = await Models.Payment.create({
-      booking: booking._id,
-      amount,
-      currency,
-      paymentMethod: 'STRIPE',
-      status: 'PENDING',
-      metadata: {
-        userId,
-        eventId,
-        seatsBooked: seatsBooked.toString(),
+    // 6. Create payment with unique key
+    const payment = await Models.Payment.create(
+      [
+        {
+          booking: booking[0]._id,
+          amount: Number(amount),
+          currency,
+          paymentMethod: 'STRIPE',
+          status: 'PENDING',
+          idempotencyKey,
+        },
+      ],
+      { session }
+    );
+
+    // 7. Create Stripe payment intent
+    const paymentIntent = await stripe.paymentIntents.create(
+      {
+        amount: Number(amount) * 100,
+        currency,
+        payment_method_types: ['card'],
+        metadata: {
+          bookingId: booking[0]._id.toString(),
+          paymentId: payment[0]._id.toString(),
+          userId: userId.toString(),
+          eventId: eventId.toString(),
+          seatsBooked: seatsBooked.toString(),
+          uniqueIdentifier: idempotencyKey,
+        },
       },
-    });
+      {
+        idempotencyKey,
+      }
+    );
 
-    // 4. Update booking with payment reference
-    booking.payment = payment._id;
-    await booking.save();
-
-    // 5. Create Stripe payment intent
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: amount * 100,
-      currency,
-      payment_method_types: ['card'],
-      metadata: {
-        bookingId: booking._id.toString(),
-        paymentId: payment._id.toString(),
-        userId,
-        eventId,
+    // 8. Update payment with intent ID
+    await Models.Payment.findByIdAndUpdate(
+      payment[0]._id,
+      {
+        paymentIntentId: paymentIntent.id,
+        status: 'PROCESSING',
       },
-    });
+      { session }
+    );
 
-    // 6. Update payment record with intent ID
-    payment.paymentIntentId = paymentIntent.id;
-    await payment.save();
+    // Commit the transaction
+    await session.commitTransaction();
 
     return successResponseData(
       res,
       {
         clientSecret: paymentIntent.client_secret,
-        booking: booking._id,
-        payment: payment._id,
-        paymentIntent: paymentIntent.id,
+        booking: booking[0]._id,
+        payment: payment[0]._id,
+        paymentIntentId: paymentIntent.id,
+        expiresAt: expiryTime,
+        // uniqueIdentifier: idempotencyKey,
       },
       STATUS_CREATED,
       COMMON_MSG.CREATED_SUCCESS.replace('##', 'Payment intent')
     );
   } catch (error) {
-    console.error(`paymentIntentCreationHandler error: ${error.message}`);
-    return errorResponseWithoutData(
-      res,
-      STATUS_INTERNAL_SERVER_ERROR,
-      MSG_INTERNAL_SERVER_ERROR
-    );
+    // Ensure transaction is aborted
+    if (session.inTransaction()) {
+      try {
+        await session.abortTransaction();
+      } catch (abortError) {
+        console.error('Transaction abort error:', abortError);
+      }
+    }
+
+    // Handle specific error scenarios
+    if (error.code === 11000) {
+      return errorResponseWithoutData(
+        res,
+        STATUS_CONFLICT,
+        'Duplicate booking attempt'
+      );
+    }
+
+    console.error(`Payment intent error: ${error.message}`, error);
+
+    // Send appropriate error response based on the error
+    switch (error.message) {
+      case 'Event not found or not published':
+        return errorResponseWithoutData(res, STATUS_NOT_FOUND, error.message);
+      case 'Not enough seats available':
+        return errorResponseWithoutData(res, STATUS_BAD_REQUEST, error.message);
+      case 'Booking failed. Seats may have been taken.':
+        return errorResponseWithoutData(
+          res,
+          STATUS_STATUS_CONFLICT,
+          error.message
+        );
+      case 'Invalid booking amount':
+        return errorResponseWithoutData(res, STATUS_BAD_REQUEST, error.message);
+      default:
+        return errorResponseWithoutData(
+          res,
+          STATUS_INTERNAL_SERVER_ERROR,
+          MSG_INTERNAL_SERVER_ERROR
+        );
+    }
+  } finally {
+    // Always end the session
+    if (session) {
+      try {
+        session.endSession();
+      } catch (sessionEndError) {
+        console.error('Session end error:', sessionEndError);
+      }
+    }
   }
 }
 
-// Stripe payment response handler (called by stripe)
+// webhooks handler
 const handleStripeWebhookHandler = async (req, res) => {
   const sig = req.headers['stripe-signature'];
   let event;
@@ -138,94 +220,148 @@ const handleStripeWebhookHandler = async (req, res) => {
 
     switch (event.type) {
       case 'payment_intent.succeeded':
-        console.log('--edo---', event.data.object);
         await handleSuccessfulPayment(event.data.object);
         break;
       case 'payment_intent.payment_failed':
         await handleFailedPayment(event.data.object);
         break;
+      case 'payment_intent.canceled':
+        await handleCanceledPayment(event.data.object);
+        break;
+      case 'payment_intent.created':
+        console.log('Payment intent created:', event.data.object.id);
+        break;
+      default:
+        console.log(`Unhandled event type ${event.type}`);
     }
 
     res.json({ received: true });
   } catch (err) {
+    console.error(`Webhook Error: ${err.message}`);
     res.status(400).send(`Webhook Error: ${err.message}`);
   }
 };
 
-// Successful payment function
-const handleSuccessfulPayment = async (paymentIntent) => {
-  const { bookingId, paymentId, eventId } = paymentIntent.metadata;
+const handleCanceledPayment = async (paymentIntent) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
   try {
+    const { bookingId, paymentId, eventId, seatsBooked } =
+      paymentIntent.metadata;
+
     // 1. Update payment status
-    const result = await Models.Payment.findByIdAndUpdate(paymentId, {
-      status: 'COMPLETED',
-      transactionId: paymentIntent.id,
-      updatedAt: new Date(),
-    });
+    await Models.Payment.findByIdAndUpdate(
+      paymentId,
+      { status: 'CANCELLED' },
+      { session }
+    );
 
-    // 2. Confirm booking
-    const res = await Models.Booking.findByIdAndUpdate(bookingId, {
-      status: 'CONFIRMED',
-    });
+    // 2. Update booking status
+    await Models.Booking.findByIdAndUpdate(
+      bookingId,
+      { status: 'CANCELLED' },
+      { session }
+    );
 
-    // 3. Generate QR code
-    const qrCode = await generateQRCode(`${bookingId}-${Date.now()}`);
-    await Models.Booking.findByIdAndUpdate(bookingId, { qrCode });
+    // 3. Release seats
+    await Models.Event.findByIdAndUpdate(
+      eventId,
+      { $inc: { 'seats.booked': -Number(seatsBooked) } },
+      { session }
+    );
 
-    // 4. Optional: Send confirmation email to user
-    // const booking = await Models.Booking.findById(bookingId).populate('userId');
-    // await sendConfirmationEmail(booking.userId.email, booking);
+    await session.commitTransaction();
   } catch (error) {
-    console.error('Successful payment handling error:', error);
-    // Consider implementing a retry mechanism or alerting system
+    await session.abortTransaction();
+    console.error('Canceled payment handling error:', error);
+    throw error;
+  } finally {
+    session.endSession();
   }
 };
 
-// Failed payment function
-const handleFailedPayment = async (paymentIntent) => {
-  const { bookingId, paymentId, eventId } = paymentIntent.metadata;
+const handleSuccessfulPayment = async (paymentIntent) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
   try {
-    // 1. Update payment status with failure details
-    await Models.Payment.findByIdAndUpdate(paymentId, {
-      status: 'FAILED',
-      transactionId: paymentIntent.id,
-      updatedAt: new Date(),
-      errorDetails: {
-        error_code:  paymentIntent.last_payment_error?.code,
-        error_message: paymentIntent.last_payment_error?.message,
-        failure_reason: paymentIntent.last_payment_error?.decline_code,
-      },
-    });
+    const { bookingId, paymentId, eventId, seatsBooked, version } =
+      paymentIntent.metadata;
 
-    // 2. Get booking to check seats before updating
-    const booking = await Models.Booking.findById(bookingId);
-    if (!booking) {
-      console.error(`Booking not found: ${bookingId}`);
+    // 1. Find and verify booking status
+    const booking = await Models.Booking.findById(bookingId).session(session);
+    if (!booking || booking.status !== 'PENDING') {
+      await session.abortTransaction();
       return;
     }
 
-    // 3. Update booking status to cancelled
-    booking.status = 'CANCELLED';
-    booking.cancellationReason = 'payment_failed';
-    booking.cancelledAt = new Date();
-    await booking.save();
+    // 2. Update payment status
+    await Models.Payment.findByIdAndUpdate(
+      paymentId,
+      { status: 'COMPLETED' },
+      { session }
+    );
 
-    // 4. Release the held seats
-    await Models.Event.findByIdAndUpdate(eventId, {
-      $inc: { 'seats.booked': -booking.seatsBooked },
-    });
+    // 3. Confirm booking
+    await Models.Booking.findByIdAndUpdate(
+      bookingId,
+      { status: 'CONFIRMED', expiresAt: null },
+      { session }
+    );
 
-    // 5. Optional: Notify user about payment failure
-    // const user = await Models.User.findById(booking.userId);
-    // await sendPaymentFailureEmail(user.email, booking);
+    // 4. Generate QR code
+    const qrCode = await generateQRCode(`${bookingId}-${Date.now()}`);
+    await Models.Booking.findByIdAndUpdate(bookingId, { qrCode }, { session });
+
+    await session.commitTransaction();
   } catch (error) {
-    console.error('Failed payment handling error:', error);
-    // Implement alerting system for manual intervention
+    await session.abortTransaction();
+    console.error('Successful payment handling error:', error);
+    throw error;
+  } finally {
+    session.endSession();
   }
 };
 
+const handleFailedPayment = async (paymentIntent) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { bookingId, paymentId, eventId, seatsBooked } =
+      paymentIntent.metadata;
+
+    // 1. Update payment status
+    await Models.Payment.findByIdAndUpdate(
+      paymentId,
+      { status: 'FAILED' },
+      { session }
+    );
+
+    // 2. Update booking status
+    await Models.Booking.findByIdAndUpdate(
+      bookingId,
+      { status: 'CANCELLED' },
+      { session }
+    );
+
+    // 3. Release seats
+    await Models.Event.findByIdAndUpdate(
+      eventId,
+      { $inc: { 'seats.booked': -Number(seatsBooked) } },
+      { session }
+    );
+
+    await session.commitTransaction();
+  } catch (error) {
+    await session.abortTransaction();
+    console.error('Failed payment handling error:', error);
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
 // in app purchase handler
 // const handleIAPPaymentHandler = async (req, res) => {
 //   try {

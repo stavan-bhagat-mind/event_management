@@ -3,18 +3,20 @@ const {
   createBookingHandler,
   getBookingDetailsHandler,
   getBookingListHandler,
+  getEventAttendeeListHandler,
   paymentIntentCreationHandler,
   handleIAPPaymentHandler,
   handleStripeWebhookHandler,
   validateQRCodeHandler,
+
   //   cancelBookingHandler,
   //   getUserBookingsHandler
 } = require('../modules/booking/controller/booking.controller');
 const authentication = require('../middlewares/authentication.middleware');
 
-// bookingRouter.post('/create', authentication, createBookingHandler);
 bookingRouter.get('/booking-list', authentication, getBookingListHandler);
 bookingRouter.get('/:id', authentication, getBookingDetailsHandler);
+bookingRouter.get('/event-attendee-list/:id', authentication, getEventAttendeeListHandler);
 // todo
 // bookingRouter.post('/validate-qr', validateQRCodeHandler);
 // bookingRouter.post('/create-iapp-payment', handleIAPPaymentHandler);

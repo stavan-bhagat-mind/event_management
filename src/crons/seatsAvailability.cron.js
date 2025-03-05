@@ -1,75 +1,152 @@
-// const cron = require('node-cron');
-// const User = require('../model/user.model');
 
-// cron.schedule('0 0 * * *', async () => {
+// // Install: npm install node-cron
+// const cron = require('node-cron');
+// const Models = require('../models/index');
+
+// // Run every minute
+// cron.schedule('* * * * *', async () => {
 //   try {
-//     const expirationThreshold = new Date(Date.now() - 24 * 60 * 60 * 1000);
-//     await User.deleteMany({
-//       verified: false,
-//       createdAt: { $lt: expirationThreshold }
+//     const time = new Date(Date.now() - 15 * 60 * 1000);
+
+//     // Find bookings that need to be expired
+//     const pendingBookings = await Models.Booking.find({
+//       status: 'PENDING',
+//       createdAt: { $lt: time },
 //     });
-//     console.log('Cleanup completed: Unverified users older than 24 hours have been removed.');
+
+//     if (pendingBookings.length > 0) {
+//       console.log(`Found ${pendingBookings.length} expired pending bookings`);
+
+//       // Process each booking
+//       for (const booking of pendingBookings) {
+//         // Update booking status
+//         booking.status = 'EXPIRED';
+//         await booking.save();
+
+//         // Update payment status
+//         if (booking.payment) {
+//           await Models.Payment.findByIdAndUpdate(booking.payment, {
+//             $set: { status: 'FAILED' },
+//           });
+
+//           try {
+//             const payment = await Models.Payment.findById(booking.payment);
+//             if (payment && payment.paymentIntentId) {
+//               // Cancel the Stripe payment intent if it exists and isn't already completed
+//               const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+//               await stripe.paymentIntents.cancel(payment.paymentIntentId);
+//             }
+//           } catch (stripeError) {
+//             console.error(
+//               `Could not cancel Stripe payment: ${stripeError.message}`
+//             );
+//           }
+//         }
+
+//         // Update event's seat count
+//         await Models.Event.findByIdAndUpdate(booking.event, {
+//           $inc: { 'seats.booked': -booking.seatsBooked },
+//         });
+//       }
+
+//       console.log(
+//         `Successfully processed ${pendingBookings.length} expired bookings`
+//       );
+//     }
 //   } catch (error) {
-//     console.error('Error during cleanup:', error);
+//     console.error('Error in booking expiration job:', error);
 //   }
 // });
 
-// Install: npm install node-cron
+// console.log('Booking expiration job scheduled');
+// ---------------------
+
 const cron = require('node-cron');
 const Models = require('../models/index');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
-// Run every minute
-cron.schedule('* * * * *', async () => {
+// Run every 5 minutes instead of every minute
+cron.schedule('*/5 * * * *', async () => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const fiveMinutesAgo = new Date(Date.now() - 8 * 60 * 1000);
-    
+    const time = new Date(Date.now() - 15 * 60 * 1000);
+
     // Find bookings that need to be expired
     const pendingBookings = await Models.Booking.find({
       status: 'PENDING',
-      createdAt: { $lt: fiveMinutesAgo }
-    });
-    
+      createdAt: { $lt: time },
+    }).session(session);
+
     if (pendingBookings.length > 0) {
       console.log(`Found ${pendingBookings.length} expired pending bookings`);
-      
-      // Process each booking
+
+      const bulkOperations = [];
+      const stripeOperations = [];
+
       for (const booking of pendingBookings) {
-        // Update booking status
-        booking.status = 'EXPIRED';
-        await booking.save();
-        
-        // Update payment status
+        // Prepare bulk write operations
+        bulkOperations.push({
+          updateOne: {
+            filter: { _id: booking._id },
+            update: { $set: { status: 'EXPIRED' } },
+          },
+        });
+
+        // Prepare payment and event updates
         if (booking.payment) {
-          await Models.Payment.findByIdAndUpdate(
-            booking.payment,
-            { $set: { status: 'FAILED' } }
+          bulkOperations.push({
+            updateOne: {
+              filter: { _id: booking.payment },
+              update: { $set: { status: 'FAILED' } },
+            },
+          });
+
+          // Collect Stripe payment intent cancellation
+          stripeOperations.push(
+            Models.Payment.findById(booking.payment).then(async (payment) => {
+              if (payment && payment.paymentIntentId) {
+                try {
+                  await stripe.paymentIntents.cancel(payment.paymentIntentId);
+                } catch (stripeError) {
+                  console.error(
+                    `Could not cancel Stripe payment: ${stripeError.message}`
+                  );
+                }
+              }
+            })
           );
-          
-          // If you're using Stripe and want to cancel the payment intent
-          try {
-            const payment = await Models.Payment.findById(booking.payment);
-            if (payment && payment.paymentIntentId) {
-              // Cancel the Stripe payment intent if it exists and isn't already completed
-              const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-              await stripe.paymentIntents.cancel(payment.paymentIntentId);
-            }
-          } catch (stripeError) {
-            // Log but don't stop the process if the Stripe cancellation fails
-            console.error(`Could not cancel Stripe payment: ${stripeError.message}`);
-          }
         }
-        
-        // Update event's seat count
-        await Models.Event.findByIdAndUpdate(
-          booking.event,
-          { $inc: { 'seats.booked': -booking.seatsBooked } }
-        );
+
+        // Prepare event seat count update
+        bulkOperations.push({
+          updateOne: {
+            filter: { _id: booking.event },
+            update: { $inc: { 'seats.booked': -booking.seatsBooked } },
+          },
+        });
       }
-      
-      console.log(`Successfully processed ${pendingBookings.length} expired bookings`);
+
+      // Perform bulk write operations
+      if (bulkOperations.length > 0) {
+        await Models.Booking.bulkWrite(bulkOperations, { session });
+      }
+
+      // Wait for all Stripe operations to complete
+      await Promise.allSettled(stripeOperations);
+
+      console.log(
+        `Successfully processed ${pendingBookings.length} expired bookings`
+      );
     }
+
+    await session.commitTransaction();
   } catch (error) {
+    await session.abortTransaction();
     console.error('Error in booking expiration job:', error);
+  } finally {
+    session.endSession();
   }
 });
 

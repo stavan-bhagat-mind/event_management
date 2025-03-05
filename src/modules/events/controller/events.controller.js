@@ -17,6 +17,7 @@ const {
   COMMON_MSG,
   INACTIVE_USER,
   MSG_NO_CHANGES_MADE,
+  MSG_MODIFICATION_RESTRICTED,
 } = require('../../../utils/common/messages');
 const { ROLE } = require('../../../utils/common/constants');
 const {
@@ -25,6 +26,7 @@ const {
   STATUS_BAD_REQUEST,
   STATUS_NOT_FOUND,
   STATUS_SUCCESS,
+  STATUS_FORBIDDEN,
   STATUS_CREATED,
   CODE,
 } = require('../../../utils/common/constants');
@@ -123,7 +125,23 @@ async function updateEventHandler(req, res) {
         COMMON_MSG.NOT_FOUND.replace('##', 'Event')
       );
     }
+    // Check for existing bookings associated with the event
+    const existingBookings = await Models.Booking.findOne({
+      event: event._id,
+      status: { $in: ['PENDING', 'CONFIRMED'] },
+    });
 
+    // If there are existing bookings, prevent the update
+    if (existingBookings) {
+      return errorResponseWithoutData(
+        res,
+        STATUS_FORBIDDEN,
+        MSG_MODIFICATION_RESTRICTED.replace('##', 'update').replace(
+          '@@',
+          'bookings'
+        )
+      );
+    }
     // Handle existing images - they will be full URLs from frontend
     const keepImagePaths = JSON.parse(req.body.existingImages || '[]').map(
       (url) => FileService.getObjectPathFromUrl(url)
@@ -213,6 +231,24 @@ async function deleteEventHandler(req, res) {
         res,
         STATUS_NOT_FOUND,
         COMMON_MSG.NOT_FOUND.replace('##', 'Event')
+      );
+    }
+
+    // Check for existing bookings associated with the event
+    const existingBookings = await Models.Booking.findOne({
+      event: event._id,
+      status: { $in: ['PENDING', 'CONFIRMED'] },
+    });
+
+    // If there are existing bookings, prevent the deletion
+    if (existingBookings) {
+      return errorResponseWithoutData(
+        res,
+        STATUS_FORBIDDEN,
+        MSG_MODIFICATION_RESTRICTED.replace('##', 'delete').replace(
+          '@@',
+          'bookings'
+        )
       );
     }
     // Delete images from MinIO - we already have paths stored

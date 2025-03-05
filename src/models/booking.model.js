@@ -43,9 +43,17 @@ const bookingSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Payment',
     },
+    idempotencyKey: {
+      type: String,
+      index: true,
+    },
     createdAt: {
       type: Date,
       default: Date.now,
+    },
+    expiresAt: {
+      type: Date,
+      required: true,
     },
   },
   { timestamps: true }

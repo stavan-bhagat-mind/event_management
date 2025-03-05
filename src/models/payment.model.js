@@ -45,6 +45,10 @@ const paymentSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    idempotencyKey: {
+      type: String,
+      index: true,
+    },
   },
   { timestamps: true }
 );
