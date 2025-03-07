@@ -105,7 +105,12 @@ async function paymentIntentCreationHandler(req, res) {
       ],
       { session }
     );
-
+    // Update booking with payment reference
+    await Models.Booking.findByIdAndUpdate(
+      booking[0]._id,
+      { payment: payment[0]._id },
+      { session }
+    );
     // 7. Create Stripe payment intent
     const paymentIntent = await stripe.paymentIntents.create(
       {
@@ -299,7 +304,11 @@ const handleSuccessfulPayment = async (paymentIntent) => {
     // 2. Update payment status
     await Models.Payment.findByIdAndUpdate(
       paymentId,
-      { status: 'COMPLETED' },
+      {
+        status: 'COMPLETED',
+        transactionId: paymentIntent.id,
+        // updatedAt: new Date(),
+      },
       { session }
     );
 
@@ -311,7 +320,13 @@ const handleSuccessfulPayment = async (paymentIntent) => {
     );
 
     // 4. Generate QR code
-    const qrCode = await generateQRCode(`${bookingId}-${Date.now()}`);
+    // const qrCode = await generateQRCode(`${bookingId}-${Date.now()}`);
+
+    // 4. Create a simple URL for the QR code
+    const verificationUrl = `${process.env.BASEURL}/event-management/booking/validate-qr/${bookingId}`;
+
+    // Generate QR code with the verification URL
+    const qrCode = await generateQRCode(verificationUrl);
     await Models.Booking.findByIdAndUpdate(bookingId, { qrCode }, { session });
 
     await session.commitTransaction();

@@ -31,9 +31,17 @@ const getFullImageUrl = (objectPath) => {
   return `${baseUrl}/${bucketName}/${objectPath}`;
 };
 
+// Function to generate a secure verification token
+const generateVerificationToken = (bookingId) => {
+  const crypto = require('crypto');
+  const randomString = crypto.randomBytes(16).toString('hex');
+  return `${bookingId}-${randomString}`;
+};
+
 module.exports = {
   generateOTP,
   generateQRCode,
   getObjectPathFromUrl,
   getFullImageUrl,
+  generateVerificationToken,
 };

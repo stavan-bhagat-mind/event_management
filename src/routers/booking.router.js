@@ -15,10 +15,10 @@ const {
 const authentication = require('../middlewares/authentication.middleware');
 
 bookingRouter.get('/booking-list', authentication, getBookingListHandler);
-bookingRouter.get('/:id', authentication, getBookingDetailsHandler);
+bookingRouter.get('/validate-qr/:id', validateQRCodeHandler);
 bookingRouter.get('/event-attendee-list/:id', authentication, getEventAttendeeListHandler);
+bookingRouter.get('/:id', authentication, getBookingDetailsHandler);
 // todo
-// bookingRouter.post('/validate-qr', validateQRCodeHandler);
 // bookingRouter.post('/create-iapp-payment', handleIAPPaymentHandler);
 
 // bookingRouter.get('/bookingDetails', getUserBookingsHandler);

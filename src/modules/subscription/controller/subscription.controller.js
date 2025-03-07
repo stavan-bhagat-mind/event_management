@@ -161,54 +161,8 @@ const getEventAttendeeListHandler = async (req, res) => {
   }
 };
 
-// validate qr for the event
-const validateQRCodeHandler = async (req, res) => {
-  {
-    try {
-      const bookingId = req.params.id;
-      const booking = await Models.Booking.findById(bookingId)
-        .select('seatsBooked totalPrice status validationStatus')
-        .populate({
-          path: 'event',
-          select: 'title date location price startTime images',
-        })
-        .populate({
-          path: 'user',
-          select: 'firstName lastName contactNumber profilePictureUrl',
-        })
-        .populate({
-          path: 'payment',
-          select: 'transactionId status updatedAt',
-        });
-
-      if (!booking) {
-        return res.status(404).render('ticket-not-found', {
-          message: 'Ticket not found',
-        });
-      }
-      console.log('booking', booking);
-      // Render the ticket details page
-      return res.render('ticket.template.ejs', {
-        booking,
-        user: booking.user,
-        event: booking.event,
-        seats: booking.seatsBooked,
-        userProfile: FileService.getFullUrl(booking.user.profilePictureUrl),
-        // userProfile: '',
-      });
-    } catch (error) {
-      console.error('Error displaying ticket:', error);
-      res.status(500).render('error.template.ejs', {
-        message: 'An error occurred',
-      });
-    }
-  }
-};
-
 module.exports = {
-  // createBookingHandler,
   getBookingDetailsHandler,
-  validateQRCodeHandler,
   getBookingListHandler,
   getEventAttendeeListHandler,
 };

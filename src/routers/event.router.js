@@ -9,6 +9,7 @@ const {
   saveEventHandler,
   removeSavedEventHandler,
   getSavedEventsHandler,
+  getAllPublishedEventsHandler,
 } = require('../modules/events/controller/events.controller');
 const authentication = require('../middlewares/authentication.middleware');
 const { multipleUpload } = require('../config/multer.config');
@@ -30,6 +31,8 @@ eventRouter.patch(
 
 eventRouter.get('/my-events', authentication, getUserCreatedEventsHandler);
 eventRouter.get('/upcoming-public', getPublishedEventsHandler);
+eventRouter.get('/all-public-events', getAllPublishedEventsHandler);
+;
 // saved-events
 eventRouter.post('/save-event', authentication, saveEventHandler);
 eventRouter.get('/get-saved-events', authentication, getSavedEventsHandler);

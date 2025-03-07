@@ -365,7 +365,34 @@ async function getPublishedEventsHandler(req, res) {
     );
   }
 }
+// Get All Published Events (finished + upcoming)
+async function getAllPublishedEventsHandler(req, res) {
+  try {
+    const events = await Models.Event.find({
+      isPublished: true,
+    })
+      .select('-version')
+      .sort('date');
 
+    // Transform events to include full image URLs
+    const transformedEvents = events.map(transformEventWithUrls);
+
+    return successResponseData(
+      res,
+      transformedEvents,
+      STATUS_SUCCESS,
+      COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Events'),
+      { total: events.length }
+    );
+  } catch (error) {
+    console.error(`getPublishedEventsHandler error: ${error.message}`);
+    return errorResponseWithoutData(
+      res,
+      STATUS_INTERNAL_SERVER_ERROR,
+      MSG_INTERNAL_SERVER_ERROR
+    );
+  }
+}
 // ------------------------------------saved event-----------------------------------------
 
 // save Events
@@ -486,6 +513,7 @@ module.exports = {
   deleteEventHandler,
   getEventDetailsHandler,
   getPublishedEventsHandler,
+  getAllPublishedEventsHandler,
   getUserCreatedEventsHandler,
   saveEventHandler,
   removeSavedEventHandler,
