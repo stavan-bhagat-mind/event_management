@@ -182,12 +182,13 @@ const validateQRCodeHandler = async (req, res) => {
         });
 
       if (!booking) {
-        return res.status(404).render('ticket-not-found', {
+        return res.status(404).render('ticketNotFound.template.ejs', {
           message: 'Ticket not found',
         });
       }
-      console.log('booking', booking);
+
       // Render the ticket details page
+
       return res.render('ticket.template.ejs', {
         booking,
         user: booking.user,
@@ -199,7 +200,7 @@ const validateQRCodeHandler = async (req, res) => {
     } catch (error) {
       console.error('Error displaying ticket:', error);
       res.status(500).render('error.template.ejs', {
-        message: 'An error occurred',
+        message: 'Oops Something went wrong,please try again later',
       });
     }
   }

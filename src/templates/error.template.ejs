@@ -1,32 +1,160 @@
 <!DOCTYPE html>
-<html>
-<head>
-    <title>Error</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Something Went Wrong</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            padding: 50px 20px;
-            background-color: #f5f5f5;
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      body {
+        background-color: #f8f8f8;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .error-container {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        width: 100%;
+        max-width: 650px;
+        text-align: center;
+      }
+
+      .error-header {
+        background-color: #d92b2b;
+        color: white;
+        padding: 20px;
+        font-size: 24px;
+        font-weight: 600;
+      }
+
+      .error-content {
+        padding: 30px 40px;
+      }
+
+      .error-image {
+        margin: 20px auto;
+        max-width: 200px;
+        height: auto;
+      }
+
+      .error-message {
+        color: #333;
+        font-size: 18px;
+        margin-bottom: 15px;
+        line-height: 1.6;
+      }
+
+      .error-details {
+        color: #666;
+        font-size: 15px;
+        margin-bottom: 30px;
+        line-height: 1.5;
+      }
+
+      .error-button {
+        background-color: #d92b2b;
+        color: white;
+        border: none;
+        padding: 12px 28px;
+        border-radius: 4px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        font-weight: 500;
+        text-decoration: none;
+        display: inline-block;
+        margin: 0 10px;
+      }
+
+      .error-button:hover {
+        background-color: #b62020;
+      }
+
+      .error-footer {
+        margin-top: 30px;
+        color: #888;
+        font-size: 14px;
+      }
+
+      @media (max-width: 576px) {
+        .error-header {
+          padding: 15px;
+          font-size: 20px;
         }
-        .container {
-            max-width: 500px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+
+        .error-content {
+          padding: 20px;
         }
-        h1 {
-            color: #e74c3c;
+
+        .error-message {
+          font-size: 16px;
         }
+
+        .error-details {
+          font-size: 14px;
+        }
+
+        .error-button {
+          padding: 10px 20px;
+          font-size: 14px;
+          display: block;
+          margin: 10px auto;
+          width: 80%;
+        }
+      }
     </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Error</h1>
-        <p><%= message %></p>
+  </head>
+  <body>
+    <div class="error-container">
+      <div class="error-header">Something Went Wrong</div>
+      <div class="error-content">
+        <img
+          src="https://ia600807.us.archive.org/33/items/monkey_202306/monkey.png"
+          alt="Error"
+          class="error-image"
+        />
+
+        <div class="error-message">
+          We apologize for the inconvenience. An unexpected error has occurred.
+        </div>
+
+        <div class="error-details">
+          Our technical team has been notified and is working to resolve this
+          issue as quickly as possible. Please try again later or
+          <a
+            href="https://iqdoodle.com/wp-content/uploads/2016/10/life-problems_01.png.webp"
+            style="color:red"
+            >contact support</a
+          >
+          if the problem persists.
+        </div>
+
+        <!-- <a href="#" class="error-button">Go Back</a> -->
+        <!-- <a href="#" class="error-button">Contact Support</a> -->
+
+        <div class="error-footer">
+          Error Reference: #ERR-
+          <script>
+            document.write(
+              Math.floor(Math.random() * 1000000)
+                .toString()
+                .padStart(6, '0')
+            );
+          </script>
+        </div>
+      </div>
     </div>
-</body>
+  </body>
 </html>

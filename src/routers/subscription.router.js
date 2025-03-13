@@ -1,20 +1,26 @@
 const subscriptionRouter = require('express').Router();
 const express = require('express');
 const {
-  paymentIntentCreationHandler,
-  handleStripeWebhookHandler,
-  confirmPaymentHandler,
+  validateReceiptHandler,
+  getSubscriptionStatusHandler,
+  appleServerNotificationHandler,
 } = require('../modules/subscription/controller/subscription.controller');
 const authentication = require('../middlewares/authentication.middleware');
 
 subscriptionRouter.post(
-  '/create-payment-intent',
+  '/validate-receipt',
   authentication,
-  paymentIntentCreationHandler
+  validateReceiptHandler
 );
-subscriptionRouter.post('/webhook', handleStripeWebhookHandler);
-
-// for test only
-subscriptionRouter.post('/test-payment', confirmPaymentHandler);
+subscriptionRouter.get(
+  '/subscription-status/:userId',
+  authentication,
+  getSubscriptionStatusHandler
+);
+subscriptionRouter.post(
+  '/apple-server-notifications',
+  authentication,
+  appleServerNotificationHandler
+);
 
 module.exports = subscriptionRouter;

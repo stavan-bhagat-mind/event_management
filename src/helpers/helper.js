@@ -37,7 +37,31 @@ const generateVerificationToken = (bookingId) => {
   const randomString = crypto.randomBytes(16).toString('hex');
   return `${bookingId}-${randomString}`;
 };
+// verifyReceipt function to verify the receipt data from Apple
+const axios = require('axios');
+require('dotenv').config();
 
+const verifyReceipt = async (receiptData, isSandbox = true) => {
+  const endpoint = isSandbox
+    ? process.env.APPLE_ENDPOINT_SANDBOX
+    : process.env.APPLE_ENDPOINT_PRODUCTION;
+
+  const payload = {
+    'receipt-data': receiptData,
+    password: process.env.APP_SHARED_SECRET,
+    'exclude-old-transactions': true,
+  };
+
+  try {
+    const { data } = await axios.post(endpoint, payload);
+    return data;
+  } catch (error) {
+    console.error('Error verifying receipt:', error);
+    throw error;
+  }
+};
+
+module.exports = { verifyReceipt };
 module.exports = {
   generateOTP,
   generateQRCode,

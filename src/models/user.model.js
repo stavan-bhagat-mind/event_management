@@ -62,6 +62,10 @@ const userSchema = new Schema(
       type: Map,
       of: String,
     },
+    subscription: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Subscription',
+    },
     deletedAt: {
       type: Date,
       default: null,

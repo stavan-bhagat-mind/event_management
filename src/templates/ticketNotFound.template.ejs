@@ -1,33 +1,193 @@
-// views/ticket-not-found.ejs
 <!DOCTYPE html>
-<html>
-<head>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ticket Not Found</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            padding: 50px 20px;
-            background-color: #f5f5f5;
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      body {
+        background-color: #f8f8f8;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .error-container {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        overflow: hidden;
+        width: 100%;
+        max-width: 650px;
+        text-align: center;
+      }
+
+      .error-header {
+        background-color: #d92b2b;
+        color: white;
+        padding: 22px;
+        font-size: 26px;
+        font-weight: 600;
+        box-shadow: 0 2px 10px rgba(217, 43, 43, 0.3);
+      }
+
+      .error-content {
+        padding: 35px 40px;
+      }
+
+      .error-image {
+        margin: 10px auto 25px;
+        max-width: 180px;
+        height: auto;
+        /* filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1)); */
+      }
+
+      .error-message {
+        color: #333;
+        font-size: 18px;
+        margin-bottom: 20px;
+        line-height: 1.6;
+      }
+
+      .error-details {
+        color: #666;
+        font-size: 16px;
+        margin-bottom: 30px;
+        line-height: 1.5;
+        max-width: 500px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .error-button-container {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+      }
+
+      .error-button {
+        background-color: #d92b2b;
+        color: white;
+        border: none;
+        padding: 14px 28px;
+        border-radius: 5px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-weight: 500;
+        text-decoration: none;
+        display: inline-block;
+        box-shadow: 0 2px 5px rgba(217, 43, 43, 0.3);
+      }
+
+      .error-button:hover {
+        background-color: #b62020;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(217, 43, 43, 0.4);
+      }
+
+      .error-button.secondary {
+        background-color: #f8f8f8;
+        color: #d92b2b;
+        border: 1px solid #d92b2b;
+      }
+
+      .error-button.secondary:hover {
+        background-color: #ffe8e8;
+      }
+
+      .error-footer {
+        margin-top: 35px;
+        color: #888;
+        font-size: 14px;
+        /* padding-top: 20px; */
+        /* border-top: 1px solid #eee; */
+      }
+
+      @media (max-width: 576px) {
+        .error-header {
+          padding: 18px;
+          font-size: 22px;
         }
-        .container {
-            max-width: 500px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+
+        .error-content {
+          padding: 25px;
         }
-        h1 {
-            color: #e74c3c;
+
+        .error-message {
+          font-size: 17px;
         }
+
+        .error-details {
+          font-size: 15px;
+        }
+
+        .error-button {
+          padding: 12px 20px;
+          width: 100%;
+          margin-bottom: 10px;
+        }
+
+        .error-button-container {
+          flex-direction: column;
+          gap: 10px;
+        }
+      }
     </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Ticket Not Found</h1>
-        <p><%= message %></p>
+  </head>
+  <body>
+    <div class="error-container">
+      <div class="error-header">Ticket Not Found</div>
+      <div class="error-content">
+        <!-- src="https://img.freepik.com/free-vector/monster-404-error-concept-illustration_114360-5485.jpg" -->
+        <img
+        src="https://img.freepik.com/premium-vector/404-error-template-flat-style_23-2147759642.jpg"
+          alt="Error"
+          class="error-image"
+        />
+
+        <div class="error-message">
+          We couldn't locate the ticket you're looking for.
+        </div>
+
+        <div class="error-details">
+          <%= message %> The QR may have been expired or incorrect. Please check
+          correctly and try again.if you think its a mistake, please check
+          assistance from
+          <a
+            style="color: red"
+            href="https://www.google.com/imgres?q=mind%20it%20rajnikant&imgurl=https%3A%2F%2Fih1.redbubble.net%2Fimage.2373984444.3562%2Fbg%2Cf8f8f8-flat%2C750x%2C075%2Cf-pad%2C750x1000%2Cf8f8f8.jpg&imgrefurl=https%3A%2F%2Fwww.redbubble.com%2Fi%2Fsticker%2FMind-it-by-matsya%2F77463562.EJUG5&docid=pksjVetr7rOBxM&tbnid=EaeHzPssL-lDrM&vet=12ahUKEwjs1dSMwoaMAxXLcGwGHcBTN3oQM3oECHIQAA..i&w=750&h=1000&hcb=2&ved=2ahUKEwjs1dSMwoaMAxXLcGwGHcBTN3oQM3oECHIQAA"
+            >contact support</a
+          >.
+        </div>
+
+        <!-- <div class="error-button-container"> -->
+        <!-- <a href="#" class="error-button">Return to Dashboard</a> -->
+        <!-- <a href="#" class="error-button secondary">Search for Tickets</a> -->
+        <!-- </div> -->
+
+        <div class="error-footer">
+         Error Reference: #TKT-
+          <script>
+            document.write(
+              Math.floor(Math.random() * 1000000)
+                .toString()
+                .padStart(6, '0')
+            );
+          </script>
+        </div>
+      </div>
     </div>
-</body>
+  </body>
 </html>
