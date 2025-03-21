@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+require('dotenv').config();
 const generateOTP = (length = 6) => {
   // Generate a random  OTP
   return crypto.randomInt(100000, 999999).toString();
@@ -51,21 +52,35 @@ const verifyReceipt = async (receiptData, isSandbox = true) => {
     password: process.env.APP_SHARED_SECRET,
     'exclude-old-transactions': true,
   };
-
+  console.log('endpoint', endpoint);
+  console.log(process.env.APP_SHARED_SECRET);
+  console.log('Sending payload:', {
+    ...payload,
+    'receipt-data': payload['receipt-data'].substring(0, 20) + '...', // Only log a preview
+  });
+  console.log('Receipt data length:', receiptData.length);
+  console.log(
+    'Receipt data format check:',
+    /^[A-Za-z0-9+/=]+$/.test(receiptData)
+  );
   try {
-    const { data } = await axios.post(endpoint, payload);
-    return data;
+    const { data } = await axios.post(endpoint, JSON.stringify(payload), {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return data;  
   } catch (error) {
     console.error('Error verifying receipt:', error);
     throw error;
   }
 };
 
-module.exports = { verifyReceipt };
 module.exports = {
   generateOTP,
   generateQRCode,
   getObjectPathFromUrl,
   getFullImageUrl,
   generateVerificationToken,
+  verifyReceipt,
 };

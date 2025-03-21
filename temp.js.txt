@@ -352,3 +352,56 @@ uploadFile();
 
         -----
         Your webhook signing secret is whsec_f232fb9db00d1139b078e4ddde4f96db2957777517ea39aa131bde0b27c00d90 (^C to quit)
+
+        # GLOBAL
+PORT=8000
+# BASEURL=http://localhost:8000
+BASEURL=http://192.168.1.194:3000
+
+# JWT
+JWT_SECRET=secret
+JWT_EXPIRY_TIME=10h
+JWT_REFRESH_KEY=refresh
+JWT_REFRESH_EXPIRE_TIME=30d
+
+#verification
+VERIFY_SECRET=veri@123
+VERIFY_EXPIRY_TIME=1h
+
+# EMAIL
+EMAIL_USER=bhagatstavan7@gmail.com
+EMAIL_PASS=dhml ejpc spol zyzl
+
+# MinIO Configuration
+MINIO_ENDPOINT=api-minio.projects.mindinventory.net
+MINIO_PORT=443
+MINIO_USE_SSL=true
+MINIO_ACCESS_KEY=8i6ESkLgkzVVy7SK0GjN
+MINIO_SECRET_KEY=wWLRHBaWpYOp5NcKWuzauG98O6eyyb9wJDdq1S7c
+MINIO_BUCKET=event-management
+MINIO_REGION=us-east-1
+MINIO_PUBLIC_URL=https://api-minio.projects.mindinventory.net
+
+# MONGO_URI=mongodb+srv://bhagatstavan7:<db_password>@cluster0.efhokdg.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+MONGO_URI=mongodb+srv://stavan_bhagat:1nsGqc1UVOxAxhpi@cluster0.ywzht.mongodb.net/event_management?retryWrites=true&w=majority&appName=Cluster0
+
+# stripe Payement
+PUBLISHABLE_KEY=pk_test_51PQ2xx2LIRvO4EuswRdkQeEipmuNunyAA47zQaLM5BVPQgDImAkpL5svimHR8GdK5LfAU9372sQJGvZG3AW5fcIX00SslBoiG7
+STRIPE_SECRET_KEY=sk_test_51PQ2xx2LIRvO4EusVQKe4KUNseTWaFf4Amn2s2ClXTNLiEg8gnMI1LULaEpARcu39IthZb2db4o5E8JAFIzitGXZ00pcPpZ3RC
+STRIPE_WEBHOOK_SECRET=whsec_f232fb9db00d1139b078e4ddde4f96db2957777517ea39aa131bde0b27c00d90
+
+# apple subscription
+APPLE_ENDPOINT_SANDBOX=https://sandbox.itunes.apple.com/verifyReceipt
+APPLE_ENDPOINT_PRODUCTION=https://buy.itunes.apple.com/verifyReceipt
+APP_SHARED_SECRET=LP2U34PLY3
+# APPLE_SECRET_KEY=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq
+# APPLE_SHARED_SECRET=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq
+# APPLE_BUNDLE_ID=com.mindinventory.eventmanagement
+# APPLE_PASSWORD=1nsGqc1UVOxAxhpi
+# APPLE_ENVIRONMENT=sandbox
+#stripe NP
+# PUBLISHABLE_KEY=pk_test_51QyRpoP6o18ioH1n0RmlaqM02DicoFT1TQbkq4o65LuuHjVi7cTxDdTIcSw8mR6I6R0n6rng4owEUCtn6eeEQSEn00UyV1gtiE
+# STRIPE_SECRET_KEY=sk_test_51QyRpoP6o18ioH1nDiZibEV6qJO1oHeHR3Yl7q80Stskr4wV4OpXes5PDHB3QKnTQ3hLzjPDoIuQj9agjtgpjpPv001gBgeeVg
+# temporary db mongo credentials
+mindinventory_pass=1nsGqc1UVOxAxhpi
+mindinventory_username=stavan_bhagat

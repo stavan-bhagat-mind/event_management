@@ -1,6 +1,6 @@
 const Models = require('../../../models/index');
 require('dotenv').config();
-
+const jwt = require('jsonwebtoken');
 const {
   successResponseData,
   errorResponseData,
@@ -23,8 +23,54 @@ const {
   STATUS_SUCCESS,
 } = require('../../../utils/common/constants');
 const FileService = require('../../../services/file.service');
+const { verifyReceipt } = require('../../../helpers/helper');
 
-// Get Booking Details
+// async function validateReceiptHandler(req, res) {
+//   try {
+//     const { signedPayload } = req.body;
+
+//     // Step 1: Decode the JWS (without verification yet)
+//     const decodedPayload = jwt.decode(signedPayload, { complete: true });
+
+//     if (!decodedPayload) {
+//       return res.status(400).json({ error: 'Invalid JWS payload' });
+//     }
+
+//     // Step 2: Get Apple's public key to verify the signature
+//     const keyId = decodedPayload.header.kid;
+//     const applePublicKey = await fetchApplePublicKey(keyId);
+
+//     // Step 3: Verify the signature using Apple's public key
+//     const verified = jwt.verify(signedPayload, applePublicKey, {
+//       algorithms: ['ES256'],
+//     });
+
+//     // Step 4: Process the verified data
+//     const { originalAppVersion, receiptType, appAppleId, bundleId } = verified;
+
+//     // Check if this is a valid app install
+//     if (receiptType !== 'Production' && receiptType !== 'ProductionVPP') {
+//       // For production apps, implement additional checks here
+//     }
+
+//     // Save or update user information
+//     await User.findOneAndUpdate(
+//       { userId: verified.userId },
+//       {
+//         userId: verified.userId,
+//         appTransactionId: verified.transactionId,
+//         originalAppVersion,
+//         verified: true,
+//       },
+//       { upsert: true }
+//     );
+
+//     res.json({ success: true });
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ error: 'Verification failed' });
+//   }
+// }
 const validateReceiptHandler = async (req, res) => {
   const { receiptData, userId } = req.body;
 
@@ -39,7 +85,7 @@ const validateReceiptHandler = async (req, res) => {
     // You might want to adjust this logic based on your requirements
     const isSandbox = process.env.NODE_ENV !== 'production';
     const result = await verifyReceipt(receiptData, isSandbox);
-
+    console.log('receipt data', result);
     if (result.status === 0) {
       const latestReceiptInfo = result.latest_receipt_info;
 
@@ -112,6 +158,30 @@ const validateReceiptHandler = async (req, res) => {
   }
 };
 
+async function fetchApplePublicKey(keyId) {
+  // Fetch Apple's public keys from their endpoint
+  const response = await fetch('https://apps.apple.com/verificationkeys');
+  const keys = await response.json();
+
+  // Find the matching key by ID
+  const matchingKey = keys.keys.find((key) => key.kid === keyId);
+
+  if (!matchingKey) {
+    throw new Error('No matching Apple public key found');
+  }
+
+  // Convert the JWK to a format that can be used by the jwt library
+  // This part depends on your JWT library's capabilities
+  return convertJWKToPEM(matchingKey);
+}
+
+// Helper function to convert JWK to PEM format
+function convertJWKToPEM(jwk) {
+  // Implementation depends on your library
+  // Many JWT libraries provide this functionality
+  // For example, with the 'jwk-to-pem' package:
+  // return jwkToPem(jwk);
+}
 // Get All Booking List
 const getSubscriptionStatusHandler = async (req, res) => {
   try {

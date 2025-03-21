@@ -47,7 +47,7 @@ async function paymentIntentCreationHandler(req, res) {
 
     // 2. Check seat availability
     if (event.seats.booked + Number(seatsBooked) > event.seats.total) {
-      throw new Error('Not enough seats available');
+      throw new Error('not enough tickets available');
     }
 
     // 3. Atomic update with version check
@@ -182,7 +182,7 @@ async function paymentIntentCreationHandler(req, res) {
     switch (error.message) {
       case 'Event not found or not published':
         return errorResponseWithoutData(res, STATUS_NOT_FOUND, error.message);
-      case 'Not enough seats available':
+      case 'not enough tickets available':
         return errorResponseWithoutData(res, STATUS_BAD_REQUEST, error.message);
       case 'Booking failed. Seats may have been taken.':
         return errorResponseWithoutData(

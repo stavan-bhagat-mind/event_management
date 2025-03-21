@@ -9,18 +9,19 @@ const subscriptionSchema = new mongoose.Schema(
     expiresDate: { type: Date, required: true },
     status: {
       type: String,
-      enum: ['ACTIVE', 'EXPIRED', 'CANCELED', 'IN_GRACE_PERIOD'], 
+      enum: ['ACTIVE', 'EXPIRED', 'CANCELED', 'IN_GRACE_PERIOD'],
       default: 'active',
     },
-    receiptData: { type: String, required: true },
-    latestReceipt: { type: String },
-    isTrialPeriod: { type: Boolean, default: false },
-    autoRenewStatus: { type: Boolean, default: true }, 
     environment: {
       type: String,
       enum: ['sandbox', 'production'],
       required: true,
     },
+    trialEndDate: Date,
+    eventsCreated: { type: Number, default: 0 },
+    latestReceipt: String,
+    verificationData: Object,
+    lastVerified: Date,
   },
   { timestamps: true }
 );

@@ -9,7 +9,7 @@ const authentication = require('../middlewares/authentication.middleware');
 
 subscriptionRouter.post(
   '/validate-receipt',
-  authentication,
+  // authentication,
   validateReceiptHandler
 );
 subscriptionRouter.get(
