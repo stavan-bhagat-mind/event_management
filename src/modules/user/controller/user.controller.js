@@ -222,8 +222,15 @@ async function refreshTokenHandler(req, res) {
 async function getUserDataHandler(req, res) {
   try {
     const userId = req.userId;
-    const user = await Models.User.findById(userId);
-
+    const user = await Models.User.findById(userId)
+      .select(
+        'id firstName lastName email contactNumber userType password profilePictureUrl'
+      )
+      .populate({
+        path: 'subscription',
+        select:
+          'user originalTransactionId productId purchaseDate expiresDate isTrial isActive autoRenewStatus lastVerified environment latestReceipt pendingRenewalInfo cancellationReason',
+      });
     if (!user) {
       return errorResponseWithoutData(
         res,
@@ -232,20 +239,25 @@ async function getUserDataHandler(req, res) {
       );
     }
 
+    if (user.profilePictureUrl !== null) {
+      user.profilePictureUrl = FileService.getFullUrl(user.profilePictureUrl);
+    }
+
     return successResponseData(
       res,
-      {
-        id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        contactNumber: user.contactNumber,
-        userType: user.userType,
-        password: user.password,
-        profilePictureUrl: user.profilePictureUrl
-          ? FileService.getFullUrl(user.profilePictureUrl)
-          : null,
-      },
+      // {
+      //   id: user._id,
+      //   firstName: user.firstName,
+      //   lastName: user.lastName,
+      //   email: user.email,
+      //   contactNumber: user.contactNumber,
+      //   userType: user.userType,
+      //   password: user.password,
+      //   profilePictureUrl: user.profilePictureUrl
+      //     ? FileService.getFullUrl(user.profilePictureUrl)
+      //     : null,
+      // },
+      user,
       STATUS_SUCCESS,
       COMMON_MSG.FETCHED_SUCCESS.replace('##', USER)
     );
@@ -555,16 +567,13 @@ async function verifyAndResetPasswordHandler(req, res) {
   }
 }
 
-// temp api will remove it
+// delete user account
 async function deleteUser(req, res) {
   try {
-    const email = req.query.email;
+    // const email = req.query.email;
+    const userId = req.userId;
 
-    // Check if email is provided
-    if (!email) {
-      return res.status(400).json({ message: 'Email is required.' });
-    }
-    const user = await Models.User.findOne({ email: email });
+    const user = await Models.User.findById(userId);
     if (!user) {
       return errorResponseWithoutData(
         res,
@@ -580,9 +589,14 @@ async function deleteUser(req, res) {
       }
     }
     // Respond with a success message
-    console.log(`user ${email} deleted`);
-    await Models.User.deleteOne({ email: email });
-    return res.status(200).json({ message: 'User  deleted successfully.' });
+    console.log(`user ${user.email} deleted`);
+    await Models.User.deleteOne({ _id: userId });
+    // return res.status(200).json({ message: 'User  deleted successfully.' });
+    return successResponseWithoutData(
+      res,
+      STATUS_SUCCESS,
+      COMMON_MSG.DELETED_SUCCESS.replace('##', 'Account')
+    );
   } catch (error) {
     console.log(error);
     errorResponseWithoutData(

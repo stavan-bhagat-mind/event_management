@@ -23,165 +23,249 @@ const {
   STATUS_SUCCESS,
 } = require('../../../utils/common/constants');
 const FileService = require('../../../services/file.service');
-const { verifyReceipt } = require('../../../helpers/helper');
+const { verifyJWS, verifyLegacyReceipt } = require('../../../helpers/helper');
+const { PRODUCT_ID } = require('../utils/subscription.constant');
+const {
+  SUBSCRIPTION_SUCCESSFULLY_VALIDATED,
+} = require('../utils/subscription.messages');
+const axios = require('axios');
 
-// async function validateReceiptHandler(req, res) {
-//   try {
-//     const { signedPayload } = req.body;
-
-//     // Step 1: Decode the JWS (without verification yet)
-//     const decodedPayload = jwt.decode(signedPayload, { complete: true });
-
-//     if (!decodedPayload) {
-//       return res.status(400).json({ error: 'Invalid JWS payload' });
-//     }
-
-//     // Step 2: Get Apple's public key to verify the signature
-//     const keyId = decodedPayload.header.kid;
-//     const applePublicKey = await fetchApplePublicKey(keyId);
-
-//     // Step 3: Verify the signature using Apple's public key
-//     const verified = jwt.verify(signedPayload, applePublicKey, {
-//       algorithms: ['ES256'],
-//     });
-
-//     // Step 4: Process the verified data
-//     const { originalAppVersion, receiptType, appAppleId, bundleId } = verified;
-
-//     // Check if this is a valid app install
-//     if (receiptType !== 'Production' && receiptType !== 'ProductionVPP') {
-//       // For production apps, implement additional checks here
-//     }
-
-//     // Save or update user information
-//     await User.findOneAndUpdate(
-//       { userId: verified.userId },
-//       {
-//         userId: verified.userId,
-//         appTransactionId: verified.transactionId,
-//         originalAppVersion,
-//         verified: true,
-//       },
-//       { upsert: true }
-//     );
-
-//     res.json({ success: true });
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).json({ error: 'Verification failed' });
-//   }
-// }
 const validateReceiptHandler = async (req, res) => {
-  const { receiptData, userId } = req.body;
-
-  if (!receiptData || !userId) {
-    return res
-      .status(400)
-      .json({ success: false, error: 'Missing receipt data or user ID' });
-  }
-
   try {
-    // Determine environment (sandbox/production)
-    // You might want to adjust this logic based on your requirements
-    const isSandbox = process.env.NODE_ENV !== 'production';
-    const result = await verifyReceipt(receiptData, isSandbox);
-    console.log('receipt data', result);
-    if (result.status === 0) {
-      const latestReceiptInfo = result.latest_receipt_info;
-
-      if (!latestReceiptInfo || latestReceiptInfo.length === 0) {
-        return res
-          .status(400)
-          .json({ success: false, error: 'No subscription information found' });
-      }
-
-      // Sort receipts by expiration date (descending)
-      const sortedReceipts = latestReceiptInfo.sort((a, b) => {
-        return parseInt(b.expires_date_ms) - parseInt(a.expires_date_ms);
-      });
-
-      const latestReceipt = sortedReceipts[0];
-
-      // Check if subscription is still valid
-      const expiresDateMs = parseInt(latestReceipt.expires_date_ms);
-      const isActive = expiresDateMs > Date.now();
-
-      // Determine status based on Apple receipt data
-      let status = isActive ? 'ACTIVE' : 'EXPIRED';
-
-      // Check for trial period
-      const isTrialPeriod = latestReceipt.is_trial_period === 'true';
-
-      // Check auto-renew status if available
-      const autoRenewStatus =
-        result.pending_renewal_info?.[0]?.auto_renew_status === '1';
-
-      // Update or create subscription in database
-      await Subscription.findOneAndUpdate(
-        { originalTransactionId: latestReceipt.original_transaction_id },
-        {
-          userId,
-          originalTransactionId: latestReceipt.original_transaction_id,
-          productId: latestReceipt.product_id,
-          purchaseDate: new Date(parseInt(latestReceipt.purchase_date_ms)),
-          expiresDate: new Date(expiresDateMs),
-          status,
-          receiptData,
-          latestReceipt: result.latest_receipt,
-          isTrialPeriod,
-          autoRenewStatus,
-          environment: isSandbox ? 'sandbox' : 'production',
-        },
-        { upsert: true, new: true }
-      );
-
-      return successResponseData(
-        res,
-        {
-          isActive,
-          expiresDate: new Date(expiresDateMs),
-          productId: latestReceipt.product_id,
-        },
-        STATUS_SUCCESS,
-        COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Booking')
-      );
+    const { receipt, jws, isSandbox } = req.body;
+    const userId = req.userId;
+    let result;
+    if (jws) {
+      // StoreKit 2 JWS validation
+      result = await verifyJWS(jws);
+    } else if (receipt) {
+      // Legacy receipt validation
+      result = await verifyLegacyReceipt(receipt, isSandbox, userId);
     } else {
-      return res.status(400).json({ success: false, error: 'Invalid receipt' });
+      return res.status(400).json({ error: 'Missing receipt data' });
     }
+
+    return successResponseWithoutData(
+      res,
+      STATUS_SUCCESS,
+      SUBSCRIPTION_SUCCESSFULLY_VALIDATED
+    );
   } catch (error) {
     console.error(`validateReceiptHandler error: ${error.message}`);
     return errorResponseWithoutData(
       res,
       STATUS_INTERNAL_SERVER_ERROR,
-      MSG_INTERNAL_SERVER_ERROR
+      // MSG_INTERNAL_SERVER_ERROR
+      error.message
     );
   }
 };
 
-async function fetchApplePublicKey(keyId) {
-  // Fetch Apple's public keys from their endpoint
-  const response = await fetch('https://apps.apple.com/verificationkeys');
-  const keys = await response.json();
+// webhooks for verification
+const subscriptionWebhooksHandler = async (req, res) => {
+  try {
+    // Important: Apple sends the data as raw body, not JSON
+    const rawBody = req.body.toString('utf8');
+    const notification = JSON.parse(rawBody);
+    console.log(notification);
+    // More robust signature verification
+    const appleCertUrl = req.headers['x-apple-certificate-url'];
+    const appleSignature = req.headers['x-apple-signature'];
 
-  // Find the matching key by ID
-  const matchingKey = keys.keys.find((key) => key.kid === keyId);
+    if (!verifyAppleSignature(rawBody, appleCertUrl, appleSignature)) {
+      return res.status(401).send('Invalid signature');
+    }
 
-  if (!matchingKey) {
-    throw new Error('No matching Apple public key found');
+    const originalTransactionId =
+      notification.unified_receipt?.latest_receipt_info?.[0]
+        ?.original_transaction_id ||
+      notification.unified_receipt?.latest_receipt_info
+        ?.original_transaction_id;
+    console.log(originalTransactionId);
+    if (!originalTransactionId) {
+      return res.status(400).json({ error: 'Missing transaction ID' });
+    }
+
+    const subscription = await Models.Subscription.findOne({
+      originalTransactionId,
+    }).populate('user');
+
+    if (!subscription) {
+      return res.status(404).json({ error: 'Subscription not found' });
+    }
+
+    // Handle different notification types
+    switch (notification.notification_type) {
+      case 'INITIAL_BUY':
+        await handleInitialPurchase(subscription, notification);
+        break;
+      case 'DID_RENEW':
+        await handleRenewal(subscription, notification);
+        break;
+      case 'DID_FAIL_TO_RENEW':
+        await handleFailedRenewal(subscription, notification);
+        break;
+      case 'CANCEL':
+        await handleCancellation(subscription, notification);
+        break;
+      case 'DID_CHANGE_RENEWAL_STATUS':
+        await handleRenewalStatusChange(subscription, notification);
+        break;
+      // case 'INTERACTIVE_RENEWAL':
+      //   await handleInteractiveRenewal(subscription, notification);
+      //   break;
+      // case 'PRICE_INCREASE_CONSENT':
+      //   await handlePriceIncreaseConsent(subscription, notification);
+      //   break;
+      default:
+        console.log(
+          'Unhandled notification type:',
+          notification.notification_type
+        );
+    }
+
+    // Always send 200 to acknowledge receipt
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('Webhook error:', error);
+    res.status(500).send('Internal error');
   }
-
-  // Convert the JWK to a format that can be used by the jwt library
-  // This part depends on your JWT library's capabilities
-  return convertJWKToPEM(matchingKey);
+};
+// Signature verification function
+async function verifyAppleSignature(rawBody, appleCertUrl, appleSignature) {
+  try {
+    const response = await axios.get(appleCertUrl);
+    const appleCertificate = response.data;
+    const verifier = crypto.createVerify('sha1');
+    verifier.update(rawBody, 'utf8');
+    return verifier.verify(appleCertificate, appleSignature, 'base64');
+  } catch (error) {
+    console.error('Signature verification failed:', error);
+    return false;
+  }
 }
+// Helper functions
+const handleInitialPurchase = async (subscription, notification) => {
+  try {
+    console.log(subscription, '------------------------', notification);
+    const latestReceiptInfo =
+      notification.unified_receipt.latest_receipt_info[0];
 
-// Helper function to convert JWK to PEM format
-function convertJWKToPEM(jwk) {
-  // Implementation depends on your library
-  // Many JWT libraries provide this functionality
-  // For example, with the 'jwk-to-pem' package:
-  // return jwkToPem(jwk);
-}
+    // Update subscription status
+    subscription.status = 'ACTIVE';
+    subscription.expiresDate = new Date(
+      parseInt(latestReceiptInfo.expires_date_ms)
+    );
+    subscription.productId = latestReceiptInfo.product_id;
+
+    // If this is the first time seeing this subscription
+    if (!subscription.purchaseDate) {
+      subscription.purchaseDate = new Date(
+        parseInt(latestReceiptInfo.purchase_date_ms)
+      );
+    }
+
+    await subscription.save();
+
+    console.log(`Initial purchase processed for ${subscription.user}`);
+  } catch (error) {
+    console.error('Error handling initial purchase:', error);
+  }
+};
+// renewal
+const handleRenewal = async (subscription, notification) => {
+  try {
+    const latestReceiptInfo =
+      notification.unified_receipt.latest_receipt_info[0];
+
+    // Update subscription with new expiry date
+    subscription.status = 'ACTIVE';
+    subscription.expiresDate = new Date(
+      parseInt(latestReceiptInfo.expires_date_ms)
+    );
+    subscription.renewalCount = (subscription.renewalCount || 0) + 1;
+
+    await subscription.save();
+
+    console.log(`Renewal processed for ${subscription.user}`);
+  } catch (error) {
+    console.error('Error handling renewal:', error);
+  }
+};
+// failed renewal
+const handleFailedRenewal = async (subscription, notification) => {
+  try {
+    const latestReceiptInfo =
+      notification.unified_receipt.latest_receipt_info[0];
+    const expirationDate = new Date(
+      parseInt(latestReceiptInfo.expires_date_ms)
+    );
+
+    // Only mark as expired if actually expired
+    if (expirationDate < new Date()) {
+      subscription.status = 'EXPIRED';
+      await subscription.save();
+      console.log(`Subscription expired for ${subscription.user}`);
+    } else {
+      console.log(
+        `Failed renewal but still within grace period for ${subscription.user}`
+      );
+    }
+  } catch (error) {
+    console.error('Error handling failed renewal:', error);
+  }
+};
+// cancellation`
+const handleCancellation = async (subscription, notification) => {
+  try {
+    // Apple may send cancellation for various reasons
+    const cancellationDate = new Date(
+      parseInt(notification.cancellation_date_ms)
+    );
+
+    subscription.status = 'CANCELLED';
+    subscription.cancellationDate = cancellationDate;
+    subscription.cancellationReason =
+      notification.cancellation_reason || 'user_cancelled';
+
+    await subscription.save();
+
+    console.log(`Cancellation processed for ${subscription.user}`);
+  } catch (error) {
+    console.error('Error handling cancellation:', error);
+  }
+};
+//renewal status change
+const handleRenewalStatusChange = async (subscription, notification) => {
+  try {
+    const autoRenewStatus = notification.auto_renew_status === 'true';
+    const latestReceiptInfo =
+      notification.unified_receipt.latest_receipt_info[0];
+
+    subscription.autoRenewStatus = autoRenewStatus;
+
+    if (!autoRenewStatus) {
+      subscription.status = 'CANCELLED';
+      subscription.cancellationReason = 'user_turned_off_auto_renew';
+    } else {
+      // User re-enabled auto-renewal
+      subscription.status = 'ACTIVE';
+      subscription.expiresDate = new Date(
+        parseInt(latestReceiptInfo.expires_date_ms)
+      );
+    }
+
+    await subscription.save();
+
+    console.log(
+      `Renewal status changed to ${autoRenewStatus} for ${subscription.user}`
+    );
+  } catch (error) {
+    console.error('Error handling renewal status change:', error);
+  }
+};
+
+// -----------------------------------------------------------------------
 // Get All Booking List
 const getSubscriptionStatusHandler = async (req, res) => {
   try {
@@ -194,7 +278,12 @@ const getSubscriptionStatusHandler = async (req, res) => {
     }).sort({ expiresDate: -1 });
 
     if (!subscription) {
-      return res.json({ hasActiveSubscription: false });
+      return successResponseData(
+        res,
+        { hasActiveSubscription: false },
+        STATUS_SUCCESS,
+        COMMON_MSG.FETCHED_SUCCESS.replace('##', 'subscription status')
+      );
     }
 
     return successResponseData(
@@ -205,7 +294,7 @@ const getSubscriptionStatusHandler = async (req, res) => {
         expiresDate: subscription.expiresDate,
       },
       STATUS_SUCCESS,
-      COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Booking')
+      COMMON_MSG.FETCHED_SUCCESS.replace('##', 'subscription status')
     );
   } catch (error) {
     console.error(`getSubscriptionStatusHandler error: ${error.message}`);
@@ -294,6 +383,7 @@ async function updateSubscriptionStatus(
 // -----------------------
 module.exports = {
   validateReceiptHandler,
+  subscriptionWebhooksHandler,
   getSubscriptionStatusHandler,
   appleServerNotificationHandler,
 };

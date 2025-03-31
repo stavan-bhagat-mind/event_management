@@ -19,6 +19,11 @@ app.use(
   '/event-management/payment/webhook',
   express.raw({ type: 'application/json' })
 );
+app.use(
+  '/event-management/subscription/webhooks',
+  express.raw({ type: 'application/json' })
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -37,10 +42,9 @@ app.use((req, res, next) => {
 // Routes
 app.use('/event-management', indexRoutes);
 
-
-app.get("/home",(req,res,next)=>{
-  res.send("This is the homepage request")
-})
+app.get('/home', (req, res, next) => {
+  res.send('This is the homepage request');
+});
 // 404 Handler
 app.use('*', (req, res) => {
   res.status(404).json({ message: 'Resource not found' });
@@ -50,4 +54,3 @@ app.use('*', (req, res) => {
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}/event-management`);
 });
-

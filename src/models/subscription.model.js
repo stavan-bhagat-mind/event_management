@@ -1,29 +1,45 @@
 const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
 
-const subscriptionSchema = new mongoose.Schema(
+const subscriptionSchema = new Schema(
   {
-    userId: { type: String, required: true, unique: true },
-    originalTransactionId: { type: String, required: true, unique: true },
-    productId: { type: String, required: true },
-    purchaseDate: { type: Date, required: true },
-    expiresDate: { type: Date, required: true },
-    status: {
-      type: String,
-      enum: ['ACTIVE', 'EXPIRED', 'CANCELED', 'IN_GRACE_PERIOD'],
-      default: 'active',
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true,
     },
-    environment: {
+    originalTransactionId: {
       type: String,
-      enum: ['sandbox', 'production'],
+      required: true,
+      unique: true,
+      index: true,
+    },
+    productId: {
+      type: String,
+      enum: ['com.monthly', 'com.yearly'],
       required: true,
     },
-    trialEndDate: Date,
-    eventsCreated: { type: Number, default: 0 },
-    latestReceipt: String,
-    verificationData: Object,
-    lastVerified: Date,
+    purchaseDate: { type: Date, required: true },
+    expiresDate: { type: Date, required: true },
+    isTrial: { type: Boolean, default: false },
+    isActive: { type: Boolean, default: true },
+    autoRenewStatus: { type: Boolean, default: false },
+    lastVerified: { type: Date, default: Date.now },
+    environment: { type: String, enum: ['Sandbox', 'Production'] },
+    latestReceipt: { type: String },
+    pendingRenewalInfo: {
+      autoRenewProductId: String,
+      autoRenewStatus: Boolean,
+      expirationIntent: Number,
+    },
+    cancellationReason: { type: String }, // For tracking why subscription ended
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    indexes: [{ expiresDate: 1 }, { user: 1, isActive: 1 }],
+    // versionKey: false,
+  }
 );
 
 module.exports = mongoose.model('Subscription', subscriptionSchema);

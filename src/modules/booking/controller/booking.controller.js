@@ -136,6 +136,7 @@ const getEventAttendeeListHandler = async (req, res) => {
       })
       .populate({ path: 'user', select: 'firstName lastName contactNumber' })
       .populate({ path: 'payment', select: 'transactionId status updatedAt' });
+
     if (!booking) {
       return errorResponseWithoutData(
         res,
@@ -143,10 +144,26 @@ const getEventAttendeeListHandler = async (req, res) => {
         COMMON_MSG.NOT_FOUND.replace('##', 'Booking')
       );
     }
+    const modifiedBookings = booking.map((booking) => {
+      const event = booking?.event;
+
+      const modifiedImages = event?.images?.map((path) =>
+        FileService.getFullUrl(path)
+      );
+
+      return {
+        ...booking.toObject(),
+        event: {
+          ...event.toObject(),
+          images: modifiedImages,
+        },
+      };
+    });
 
     return successResponseData(
       res,
-      booking,
+      // booking,
+      modifiedBookings,
       STATUS_SUCCESS,
       COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Booking'),
       { total: booking.length }

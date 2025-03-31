@@ -63,6 +63,9 @@ async function createEventHandler(req, res) {
         imagePaths.push(fileData.objectPath);
       }
     }
+    //context from subscription middleware
+    const isTrialEvent = req.eventCreationContext.isTrialEvent;
+    const isPublished = req.eventCreationContext.isPublished;
 
     // Create event with all data including images in one operation
     const event = await Models.Event.create({
@@ -80,7 +83,8 @@ async function createEventHandler(req, res) {
       creator: req.userId,
       organizer: value.organizer,
       price: value.price,
-      isPublished: true,
+      isPublished: isPublished,
+      // createdDuringTrial: isTrialEvent,
     });
 
     // Prepare response with full URLs
@@ -88,12 +92,16 @@ async function createEventHandler(req, res) {
       ...event.toObject(),
       images: event.images.map((path) => FileService.getFullUrl(path)),
     };
+    // Customize success message based on event creation context
+    const successMessage = isTrialEvent
+      ? COMMON_MSG.CREATED_SUCCESS.replace('##', 'Trial Event')
+      : COMMON_MSG.CREATED_SUCCESS.replace('##', 'Event');
 
     return successResponseData(
       res,
       responseData,
       STATUS_CREATED,
-      COMMON_MSG.CREATED_SUCCESS.replace('##', 'Event')
+      successMessage
     );
   } catch (error) {
     console.error(`createEventHandler error: ${error.message}`);
@@ -125,6 +133,7 @@ async function updateEventHandler(req, res) {
         COMMON_MSG.NOT_FOUND.replace('##', 'Event')
       );
     }
+
     // Check for existing bookings associated with the event
     const existingBookings = await Models.Booking.findOne({
       event: event._id,
@@ -292,6 +301,7 @@ async function getUserCreatedEventsHandler(req, res) {
       return errorResponseWithoutData(res, STATUS_NOT_FOUND, INACTIVE_USER);
     }
     const events = await Models.Event.find({ creator: req.userId })
+      .select('-createdDuringTrial')
       .sort('-date')
       .populate('creator', 'email');
 
@@ -317,7 +327,9 @@ async function getUserCreatedEventsHandler(req, res) {
 // Get Event Details
 async function getEventDetailsHandler(req, res) {
   try {
-    const event = await Models.Event.findById(req.params.id);
+    const event = await Models.Event.findById(req.params.id).select(
+      '-createdDuringTrial'
+    );
 
     const transformedEvent = transformEventWithUrls(event);
 
@@ -344,7 +356,9 @@ async function getPublishedEventsHandler(req, res) {
     const events = await Models.Event.find({
       isPublished: true,
       date: { $gte: today },
-    }).sort('date');
+    })
+      .select('-createdDuringTrial')
+      .sort('date');
 
     // Transform events to include full image URLs
     const transformedEvents = events.map(transformEventWithUrls);
@@ -365,6 +379,7 @@ async function getPublishedEventsHandler(req, res) {
     );
   }
 }
+
 // Get All Published Events (finished + upcoming)
 async function getAllPublishedEventsHandler(req, res) {
   try {

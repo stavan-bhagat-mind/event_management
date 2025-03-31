@@ -38,12 +38,9 @@ const authenticationMiddleware = (req, res, next) => {
         MSG_TOKEN_EXPIRED
       );
     } else if (error.name === 'JsonWebTokenError') {
-      return errorResponseData(
-        res,
-        STATUS_FORBIDDEN,
-        INVALID_TOKEN,
-        error.name
-      );
+      return errorResponseData(res, STATUS_FORBIDDEN, INVALID_TOKEN, {
+        error: error.name,
+      });
     } else {
       console.error('Authentication error:', error);
       return errorResponseWithoutData(

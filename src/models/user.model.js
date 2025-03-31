@@ -65,6 +65,7 @@ const userSchema = new Schema(
     subscription: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Subscription',
+      index: true,
     },
     deletedAt: {
       type: Date,
