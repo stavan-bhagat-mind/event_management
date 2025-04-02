@@ -18,7 +18,7 @@ subscriptionRouter.post(
   subscriptionWebhooksHandler
 );
 subscriptionRouter.get(
-  '/subscription-status/:userId',
+  '/subscription-status',
   authentication,
   getSubscriptionStatusHandler
 );

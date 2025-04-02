@@ -33,6 +33,12 @@ const subscriptionSchema = new Schema(
       autoRenewStatus: Boolean,
       expirationIntent: Number,
     },
+    status: {
+      type: String,
+      enum: ['active', 'expired', 'canceled', 'past_due', 'paused', 'trial'],
+      default: 'active',
+      index: true,
+    },
     cancellationReason: { type: String }, // For tracking why subscription ended
   },
   {

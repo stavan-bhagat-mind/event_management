@@ -102,6 +102,113 @@
 // };
 // -----------------------------------------------------------------------
 
+// const Models = require('../models/index');
+// const {
+//   MANAGER_ONLY_CREATE_EVENT,
+// } = require('../modules/events/utils/events.messages');
+// const { errorResponseWithoutData } = require('../utils/response');
+// const { ROLE } = require('../utils/common/constants');
+// const {
+//   MSG_INTERNAL_SERVER_ERROR,
+//   COMMON_MSG,
+// } = require('../utils/common/messages');
+// const {
+//   STATUS_INTERNAL_SERVER_ERROR,
+//   STATUS_BAD_REQUEST,
+//   STATUS_NOT_FOUND,
+//   STATUS_FORBIDDEN,
+// } = require('../utils/common/constants');
+// const {
+//   NO_ACTIVE_SUBSCRIPTION,
+// } = require('../modules/subscription/utils/subscription.messages');
+
+// const checkSubscription = async (req, res, next) => {
+//   try {
+//     const userId = req.userId;
+
+//     // 1. Fetch user document
+//     const user = await Models.User.findById(userId);
+//     if (!user) {
+//       return errorResponseWithoutData(
+//         res,
+//         STATUS_NOT_FOUND,
+//         COMMON_MSG.NOT_FOUND.replace('##', 'User')
+//       );
+//     }
+
+//     // 2. Verify user type
+//     if (user.userType !== ROLE[1]) {
+//       return errorResponseWithoutData(
+//         res,
+//         STATUS_FORBIDDEN,
+//         MANAGER_ONLY_CREATE_EVENT
+//       );
+//     }
+
+//     // 3. Find active subscription
+//     const subscription = await Models.Subscription.findOne({
+//       user: userId,
+//       isActive: true,
+//       expiresDate: { $gt: new Date() },
+//     });
+
+//     if (!subscription) {
+//       return errorResponseWithoutData(
+//         res,
+//         STATUS_FORBIDDEN,
+//         NO_ACTIVE_SUBSCRIPTION
+//       );
+//     }
+
+//     // 4. Calculate event count for subscription period
+//     const eventCount = await Models.Event.countDocuments({
+//       creator: userId,
+//       createdAt: { $gte: subscription.purchaseDate },
+//     });
+
+//     // 5. Determine creation rights
+//     let canCreateEvent = false;
+//     let shouldMarkAsTrial = false;
+
+//     if (subscription.isTrial) {
+//       canCreateEvent = true;
+//       shouldMarkAsTrial = true;
+//     } else if (subscription.productId === 'com.yearly') {
+//       canCreateEvent = true;
+//     } else if (subscription.productId === 'com.monthly') {
+//       canCreateEvent = eventCount < 10;
+//     }
+
+//     // 6. Enforce limits
+//     if (!canCreateEvent) {
+//       const message =
+//         subscription.productId === 'com.monthly'
+//           ? 'Monthly event limit (10) reached. Upgrade to yearly for unlimited.'
+//           : 'Event creation not allowed';
+//       return errorResponseWithoutData(res, STATUS_FORBIDDEN, message);
+//     }
+
+//     // 7. Set creation context
+//     req.eventCreationContext = {
+//       isTrialEvent: shouldMarkAsTrial,
+//       isPublished: !shouldMarkAsTrial,
+//       subscription: subscription,
+//     };
+
+//     next();
+//   } catch (error) {
+//     console.error('Subscription middleware error:', error);
+//     return errorResponseWithoutData(
+//       res,
+//       STATUS_INTERNAL_SERVER_ERROR,
+//       MSG_INTERNAL_SERVER_ERROR
+//     );
+//   }
+// };
+// module.exports = checkSubscription;
+
+// --------
+const moment = require('moment');
 const Models = require('../models/index');
 const {
   MANAGER_ONLY_CREATE_EVENT,
@@ -126,7 +233,7 @@ const checkSubscription = async (req, res, next) => {
   try {
     const userId = req.userId;
 
-    // 1. Fetch user document first
+    // 1. Fetch user document
     const user = await Models.User.findById(userId);
     if (!user) {
       return errorResponseWithoutData(
@@ -136,7 +243,7 @@ const checkSubscription = async (req, res, next) => {
       );
     }
 
-    // 2. Verify user type
+    // 2. Verify user is an event manager
     if (user.userType !== ROLE[1]) {
       return errorResponseWithoutData(
         res,
@@ -145,10 +252,10 @@ const checkSubscription = async (req, res, next) => {
       );
     }
 
-    // 3. Find active subscription
+    // 3. Find ACTIVE subscription (status: 'active' and not expired)
     const subscription = await Models.Subscription.findOne({
       user: userId,
-      isActive: true,
+      status: 'active',
       expiresDate: { $gt: new Date() },
     });
 
@@ -160,38 +267,59 @@ const checkSubscription = async (req, res, next) => {
       );
     }
 
-    // 4. Calculate event count for subscription period
-    const eventCount = await Models.Event.countDocuments({
-      creator: userId,
-      createdAt: { $gte: subscription.purchaseDate },
-    });
+    // 4. Calculate event count based on subscription type
+    let eventCount;
+    const now = new Date();
 
-    // 5. Determine creation rights
+    if (subscription.productId === 'com.monthly') {
+      // For monthly subscriptions, count events created THIS MONTH
+      const startOfMonth = moment().startOf('month').toDate();
+      eventCount = await Models.Event.countDocuments({
+        creator: userId,
+        createdAt: { $gte: startOfMonth }, // Reset count monthly
+      });
+    } else {
+      // For yearly/trial, count since purchase date
+      eventCount = await Models.Event.countDocuments({
+        creator: userId,
+        createdAt: { $gte: subscription.purchaseDate },
+      });
+    }
+
+    // 5. Determine if user can create an event
     let canCreateEvent = false;
     let shouldMarkAsTrial = false;
 
-    if (subscription.isTrial) {
+    if (subscription.status === 'trial' && subscription.expiresDate > now) {
       canCreateEvent = true;
       shouldMarkAsTrial = true;
     } else if (subscription.productId === 'com.yearly') {
       canCreateEvent = true;
     } else if (subscription.productId === 'com.monthly') {
-      canCreateEvent = eventCount < 10;
+      canCreateEvent = eventCount < 10; // Monthly limit: 10 events
     }
 
-    // 6. Enforce limits
+    // 6. Reject if limits are exceeded
     if (!canCreateEvent) {
-      const message =
-        subscription.productId === 'com.monthly'
-          ? 'Monthly event limit (10) reached. Upgrade to yearly for unlimited.'
-          : 'Event creation not allowed';
+      let message;
+      if (subscription.productId === 'com.monthly') {
+        message =
+          'Monthly event limit (10) reached. Upgrade to yearly for unlimited.';
+      } else if (
+        subscription.status === 'trial' &&
+        subscription.expiresDate <= now
+      ) {
+        message = 'Trial period expired. Subscribe to continue.';
+      } else {
+        message = 'Event creation not allowed for your subscription.';
+      }
       return errorResponseWithoutData(res, STATUS_FORBIDDEN, message);
     }
 
-    // 7. Set creation context
+    // 7. Attach subscription context to request
     req.eventCreationContext = {
       isTrialEvent: shouldMarkAsTrial,
-      isPublished: !shouldMarkAsTrial,
+      isPublished: !shouldMarkAsTrial, // Auto-publish if not trial
       subscription: subscription,
     };
 
@@ -205,4 +333,5 @@ const checkSubscription = async (req, res, next) => {
     );
   }
 };
+
 module.exports = checkSubscription;

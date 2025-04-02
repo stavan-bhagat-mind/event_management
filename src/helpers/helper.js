@@ -87,49 +87,84 @@ const APPLE_SHARED_SECRET = process.env.APPLE_SHARED_SECRET;
 const BUNDLE_ID = process.env.APPLE_BUNDLE_ID;
 
 // Legacy Receipt Validation
-// async function verifyLegacyReceipt(receiptData, isSandbox = true) {
+// async function verifyLegacyReceipt(receiptData, isSandbox = false, userId) {
 //   const verificationURL = isSandbox
 //     ? 'https://sandbox.itunes.apple.com/verifyReceipt'
 //     : 'https://buy.itunes.apple.com/verifyReceipt';
 
-//   const requestData = {
-//     'receipt-data': receiptData,
-//     password: APPLE_SHARED_SECRET,
-//     'exclude-old-transactions': true,
-//   };
-//   console.log('requestData', requestData);
-//   const decodedString = Buffer.from(receiptData, 'base64').toString('utf-8');
-//   console.log(decodedString);
-
 //   try {
-//     const response = await axios.post(verificationURL, requestData);
-//     console.log('first', response.data);
-//     // Handle test receipts sent to production
+//     const response = await axios.post(verificationURL, {
+//       'receipt-data': receiptData,
+//       password: process.env.APPLE_SHARED_SECRET,
+//       'exclude-old-transactions': false,
+//     });
+
+//     // Handle sandbox/production mismatch
 //     if (response.data.status === 21007) {
-//       const sandboxResponse = await verifyLegacyReceipt(receiptData, true);
-//       console.log('Sandbox response:', sandboxResponse);
-//       return sandboxResponse;
+//       return await verifyLegacyReceipt(receiptData, true, userId);
 //     }
-//     console.log(response.data);
-//     // Validate bundle ID
-//     if (response.data.receipt?.bundle_id !== BUNDLE_ID) {
-//       throw new Error('Invalid bundle ID in receipt');
+//     if (response.data.status === 21008) {
+//       return await verifyLegacyReceipt(receiptData, false, userId);
+//     }
+//     if (response.data.status !== 0) {
+//       throw new Error(
+//         `Receipt validation failed with status: ${response.data.status}`
+//       );
+//     }
+
+//     // Process valid receipt
+//     const receipt = response.data;
+//     console.log('receipt', receipt);
+//     const latestReceiptInfo = receipt.latest_receipt_info[0];
+//     const pendingRenewalInfo = receipt.pending_renewal_info?.[0] || {};
+
+//     // 1. Find or create subscription
+//     const subscription = await Models.Subscription.findOneAndUpdate(
+//       { originalTransactionId: latestReceiptInfo.original_transaction_id },
+//       {
+//         user: userId,
+//         productId: latestReceiptInfo.product_id,
+//         purchaseDate: new Date(parseInt(latestReceiptInfo.purchase_date_ms)),
+//         expiresDate: new Date(parseInt(latestReceiptInfo.expires_date_ms)),
+//         isTrial: latestReceiptInfo.is_trial_period === 'true',
+//         isActive:
+//           new Date(parseInt(latestReceiptInfo.expires_date_ms)) > new Date(),
+//         autoRenewStatus: pendingRenewalInfo.auto_renew_status === '1',
+//         environment: isSandbox ? 'Sandbox' : 'Production',
+//         latestReceipt: receipt.latest_receipt,
+//         pendingRenewalInfo: {
+//           autoRenewProductId: pendingRenewalInfo.auto_renew_product_id,
+//           autoRenewStatus: pendingRenewalInfo.auto_renew_status === '1',
+//           expirationIntent: pendingRenewalInfo.expiration_intent,
+//         },
+//       },
+//       { upsert: true, new: true }
+//     );
+
+//     // 2. Update user's subscription status
+//     await Models.User.findByIdAndUpdate(userId, {
+//       isSubscribed: subscription.isActive,
+//       subscription: subscription._id,
+//     });
+
+//     // 3. Handle trial period events
+//     if (subscription.isTrial) {
+//       await Event.updateMany({ creator: userId }, { createdDuringTrial: true });
 //     }
 
 //     return {
-//       status: response.data.status,
-//       environment: isSandbox ? 'Sandbox' : 'Production',
-//       receipt: response.data.receipt,
-//       latestReceiptInfo: response.data.latest_receipt_info,
-//       pendingRenewalInfo: response.data.pending_renewal_info,
+//       status: 'success',
+//       subscription,
+//       latestReceipt: receipt.latest_receipt,
 //     };
 //   } catch (error) {
-//     console.error('Receipt verification failed:', error);
-//     throw new Error(`Receipt verification failed: ${error.message}`);
+//     console.error('Verification error', error);
+//     throw error;
 //   }
 // }
 
 async function verifyLegacyReceipt(receiptData, isSandbox = false, userId) {
+  console.log('userID', userId);
   const verificationURL = isSandbox
     ? 'https://sandbox.itunes.apple.com/verifyReceipt'
     : 'https://buy.itunes.apple.com/verifyReceipt';
@@ -157,40 +192,74 @@ async function verifyLegacyReceipt(receiptData, isSandbox = false, userId) {
     // Process valid receipt
     const receipt = response.data;
     console.log('receipt', receipt);
+
+    // Validate latest_receipt_info
+    if (
+      !receipt.latest_receipt_info ||
+      receipt.latest_receipt_info.length === 0
+    ) {
+      throw new Error('No transactions found in latest_receipt_info');
+    }
+
     const latestReceiptInfo = receipt.latest_receipt_info[0];
     const pendingRenewalInfo = receipt.pending_renewal_info?.[0] || {};
 
+    // Determine subscription status
+    let subscriptionStatus;
+    const expiresDateMs = parseInt(latestReceiptInfo.expires_date_ms, 10);
+    const expiresDate = new Date(expiresDateMs);
+    const isExpired = expiresDate <= new Date();
+    const isTrial = latestReceiptInfo.is_trial_period === 'true';
+
+    // Check if subscription is canceled (auto-renew off but not expired)
+    const autoRenewStatus = pendingRenewalInfo.auto_renew_status === '1';
+    const hasCancellationIntent = pendingRenewalInfo.expiration_intent != null;
+
+    if (isExpired) {
+      subscriptionStatus = hasCancellationIntent ? 'canceled' : 'expired';
+    } else if (!autoRenewStatus) {
+      subscriptionStatus = 'canceled'; // User canceled but still in active period
+    } else if (isTrial) {
+      subscriptionStatus = 'trial';
+    } else {
+      subscriptionStatus = 'active';
+    }
+
     // 1. Find or create subscription
+    console.log('u2', userId);
     const subscription = await Models.Subscription.findOneAndUpdate(
       { originalTransactionId: latestReceiptInfo.original_transaction_id },
       {
         user: userId,
         productId: latestReceiptInfo.product_id,
-        purchaseDate: new Date(parseInt(latestReceiptInfo.purchase_date_ms)),
-        expiresDate: new Date(parseInt(latestReceiptInfo.expires_date_ms)),
-        isTrial: latestReceiptInfo.is_trial_period === 'true',
-        isActive:
-          new Date(parseInt(latestReceiptInfo.expires_date_ms)) > new Date(),
-        autoRenewStatus: pendingRenewalInfo.auto_renew_status === '1',
+        purchaseDate: new Date(
+          parseInt(latestReceiptInfo.purchase_date_ms, 10)
+        ),
+        expiresDate: expiresDate,
+        status: subscriptionStatus,
+        isTrial: isTrial,
+        autoRenewStatus: autoRenewStatus,
         environment: isSandbox ? 'Sandbox' : 'Production',
         latestReceipt: receipt.latest_receipt,
         pendingRenewalInfo: {
           autoRenewProductId: pendingRenewalInfo.auto_renew_product_id,
-          autoRenewStatus: pendingRenewalInfo.auto_renew_status === '1',
-          expirationIntent: pendingRenewalInfo.expiration_intent,
+          autoRenewStatus: autoRenewStatus,
+          expirationIntent: pendingRenewalInfo.expiration_intent
+            ? parseInt(pendingRenewalInfo.expiration_intent, 10)
+            : null,
         },
       },
-      { upsert: true, new: true }
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    // 2. Update user's subscription status
+    // 2. Update user's subscription
     await Models.User.findByIdAndUpdate(userId, {
-      isSubscribed: subscription.isActive,
+      isSubscribed: ['active', 'trial'].includes(subscription.status),
       subscription: subscription._id,
     });
 
     // 3. Handle trial period events
-    if (subscription.isTrial) {
+    if (subscription.status === 'trial') {
       await Event.updateMany({ creator: userId }, { createdDuringTrial: true });
     }
 
