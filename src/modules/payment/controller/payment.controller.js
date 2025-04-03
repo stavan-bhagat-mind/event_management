@@ -215,14 +215,12 @@ async function paymentIntentCreationHandler(req, res) {
 const handleStripeWebhookHandler = async (req, res) => {
   const sig = req.headers['stripe-signature'];
   let event;
-
   try {
     event = stripe.webhooks.constructEvent(
       req.body,
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     );
-    console.log('------event--------', event);
     switch (event.type) {
       case 'payment_intent.succeeded':
         await handleSuccessfulPayment(event.data.object);

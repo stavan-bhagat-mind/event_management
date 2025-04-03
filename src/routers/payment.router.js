@@ -1,5 +1,4 @@
 const paymentRouter = require('express').Router();
-const express = require('express');
 const {
   paymentIntentCreationHandler,
   handleStripeWebhookHandler,
