@@ -365,44 +365,116 @@ const getSubscriptionStatusHandler = async (req, res) => {
 
 // -----------------------------------------------------------------------
 
+// Apple's public key URL
+const APPLE_ROOT_URL =
+  'https://apple.com/app-store-connect-notifications-public-key';
+
+async function verifyAppleJWT(signedPayload) {
+  try {
+    // Get Apple's public keys
+    const response = await axios.get(APPLE_ROOT_URL);
+    const publicKeys = response.data;
+
+    // Decode JWT header to get kid
+    const header = jwt.decode(signedPayload, { complete: true }).header;
+
+    // Find matching public key
+    const publicKey = publicKeys.keys.find((key) => key.kid === header.kid);
+
+    if (!publicKey) throw new Error('Public key not found');
+
+    // Convert JWK to PEM format
+    const pem = `-----BEGIN PUBLIC KEY-----\n${publicKey.x5c[0]}\n-----END PUBLIC KEY-----`;
+
+    // Verify JWT
+    return jwt.verify(signedPayload, pem, {
+      algorithms: ['ES256'],
+      issuer: 'App Store Connect',
+      audience: process.env.APPLE_BUNDLE_ID,
+    });
+  } catch (error) {
+    console.error('JWT verification failed:', error);
+    throw error;
+  }
+}
+
 // Webhook handler for App Store Server Notifications
 const subscriptionWebhooksHandler = async (req, res) => {
   try {
     console.log('req', req);
     console.log('req.headers', req.headers);
-    const notification = req.body;
-    let originalTransactionId;
-    let subscription;
-    console.log('Received notification:', notification);
-    // ======================
-    // 1. Determine Notification Type
-    // ======================
-    if (notification.signedPayload) {
-      // V2 JWT Notification
-      const decoded = await handleJWTNotification(notification.signedPayload);
-      console.log('Decoded V2 Notification:', decoded);
+    const decodedPayload = await verifyAppleJWT(req.body.signedPayload);
+    const notification = decodedPayload.payload;
 
-      originalTransactionId = extractV2TransactionId(decoded);
-      subscription = await findSubscription(originalTransactionId);
+    console.log('Received Apple notification:', notification);
 
-      // await handleV2Notification(decoded, subscription);
-      await handleAnyNotification(decoded, subscription);
-    } else if (notification.unified_receipt) {
-      // V1 Legacy Notification
-      console.log('Legacy V1 Notification:', notification);
+    // Handle different notification types
+    switch (notification.notificationType) {
+      case 'INITIAL_BUY':
+        // await handleInitialPurchase(notification);
+        console.log('initial buy')
+        break;
 
-      originalTransactionId = extractV1TransactionId(notification);
-      subscription = await findSubscription(originalTransactionId);
+      case 'CANCEL':
+        // await handleCancellation(notification);
+        console.log('initial buy')
+        break;
 
-      // await handleV1Notification(notification, subscription);
-      await handleAnyNotification(notification, subscription);
-    } else {
-      throw new Error('Unrecognized notification format');
+      case 'DID_CHANGE_RENEWAL_PREF':
+        console.log('ddi change renewal')
+        // await handleRenewalChange(notification);
+        break;
+
+      case 'DID_FAIL_TO_RENEW':
+        console.log('did fail to renew')
+        // await handleRenewalFailure(notification);
+        break;
+
+      case 'DID_RENEW':
+        console.log('initial buy')
+        // await handleSuccessfulRenewal(notification);
+        break;
+
+      case 'EXPIRED':
+        // await handleExpiration(notification);
+        break;
+
+      // Add more cases as needed
+      default:
+        console.warn(
+          'Unhandled notification type:',
+          notification.notificationType
+        );
     }
+    // // ======================
+    // // 1. Determine Notification Type
+    // // ======================
+    // if (notification.signedPayload) {
+    //   // V2 JWT Notification
+    //   const decoded = await handleJWTNotification(notification.signedPayload);
+    //   console.log('Decoded V2 Notification:', decoded);
 
-    // ======================
-    // 2. Send Response
-    // ======================
+    //   originalTransactionId = extractV2TransactionId(decoded);
+    //   subscription = await findSubscription(originalTransactionId);
+
+    //   // await handleV2Notification(decoded, subscription);
+    //   await handleAnyNotification(decoded, subscription);
+    // } else if (notification.unified_receipt) {
+    //   // V1 Legacy Notification
+    //   console.log('Legacy V1 Notification:', notification);
+
+    //   originalTransactionId = extractV1TransactionId(notification);
+    //   subscription = await findSubscription(originalTransactionId);
+
+    //   // await handleV1Notification(notification, subscription);
+    //   await handleAnyNotification(notification, subscription);
+    // } else {
+    //   throw new Error('Unrecognized notification format');
+    // }
+
+    // // ======================
+    // // 2. Send Response
+    // // ======================
     res.status(200).send('OK');
   } catch (error) {
     console.error('Webhook Processing Error:', {
@@ -417,22 +489,6 @@ const subscriptionWebhooksHandler = async (req, res) => {
 // ======================
 // Helper Functions
 // ======================
-
-// JWT Handling
-const handleJWTNotification = async (signedPayload) => {
-  try {
-    // Verify signature (recommended for production)
-    const isValid = await verifyAppleJWT(signedPayload);
-    if (!isValid) throw new Error('Invalid JWT signature');
-
-    // Decode payload
-    const decoded = jwt.decode(signedPayload, { complete: true });
-    return decoded.payload;
-  } catch (error) {
-    console.error('JWT Processing Error:', error);
-    throw new Error('Failed to process JWT notification');
-  }
-};
 
 // Transaction ID Extractors
 const extractV2TransactionId = (notification) => {
@@ -890,37 +946,37 @@ const updateUserSubscriptionStatus = async (userId, status) => {
   });
 };
 
-const verifyAppleJWT = async (signedPayload) => {
-  try {
-    // 1. Decode without verification to get header
-    const decoded = jwt.decode(signedPayload, { complete: true });
-    if (!decoded?.header) {
-      throw new Error('Invalid JWT structure');
-    }
+// const verifyAppleJWT = async (signedPayload) => {
+//   try {
+//     // 1. Decode without verification to get header
+//     const decoded = jwt.decode(signedPayload, { complete: true });
+//     if (!decoded?.header) {
+//       throw new Error('Invalid JWT structure');
+//     }
 
-    // 2. Get Apple's public key
-    const applePublicKeys = await fetchApplePublicKeys();
-    const publicKey = findMatchingPublicKey(decoded.header, applePublicKeys);
+//     // 2. Get Apple's public key
+//     const applePublicKeys = await fetchApplePublicKeys();
+//     const publicKey = findMatchingPublicKey(decoded.header, applePublicKeys);
 
-    if (!publicKey) {
-      throw new Error('No matching public key found');
-    }
+//     if (!publicKey) {
+//       throw new Error('No matching public key found');
+//     }
 
-    // 3. Convert JWK to PEM format
-    const pem = jwkToPem(publicKey);
+//     // 3. Convert JWK to PEM format
+//     const pem = jwkToPem(publicKey);
 
-    // 4. Verify the signature
-    jwt.verify(signedPayload, pem, {
-      algorithms: ['ES256'],
-      complete: true,
-    });
+//     // 4. Verify the signature
+//     jwt.verify(signedPayload, pem, {
+//       algorithms: ['ES256'],
+//       complete: true,
+//     });
 
-    return true;
-  } catch (error) {
-    console.error('JWT Verification Failed:', error.message);
-    return false;
-  }
-};
+//     return true;
+//   } catch (error) {
+//     console.error('JWT Verification Failed:', error.message);
+//     return false;
+//   }
+// };
 
 // Fetch Apple's public keys
 const fetchApplePublicKeys = async () => {

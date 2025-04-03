@@ -21,11 +21,11 @@ app.use(
   '/event-management/payment/webhook',
   express.raw({ type: 'application/json' })
 );
-app.use(
-  '/event-management/subscription/webhooks',
-  // express.raw({ type: 'application/json' })
-  express.json()
-);
+// app.use(
+//   '/event-management/subscription/webhooks',
+//   // express.raw({ type: 'application/json' })
+//   express.json()
+// );
 
 app.use(express.urlencoded({ extended: true }));
 
