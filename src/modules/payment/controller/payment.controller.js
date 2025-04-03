@@ -222,7 +222,7 @@ const handleStripeWebhookHandler = async (req, res) => {
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     );
-
+    console.log('------event--------', event);
     switch (event.type) {
       case 'payment_intent.succeeded':
         await handleSuccessfulPayment(event.data.object);

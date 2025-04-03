@@ -15,12 +15,12 @@ const app = express();
 const port = process.env.PORT || 8080;
 
 // Middleware
-app.use(express.json());
 
 app.use(
   '/event-management/payment/webhooks',
   express.raw({ type: 'application/json' })
 );
+app.use(express.json());
 // app.use(
 //   '/event-management/subscription/webhooks',
 //   // express.raw({ type: 'application/json' })
