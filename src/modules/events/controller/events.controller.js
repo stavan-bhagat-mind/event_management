@@ -198,7 +198,7 @@ async function updateEventHandler(req, res) {
         seats: {
           total: value.seats,
         },
-        organizer: value.organizers,
+        organizer: value.organizer,
         price: value.price,
         isPublished: value.isPublished ?? event.isPublished,
       },

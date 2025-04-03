@@ -372,20 +372,21 @@ const APPLE_ROOT_URL =
 async function verifyAppleJWT(signedPayload) {
   try {
     // Get Apple's public keys
+    console.log('------------------------------inside jwt----------------');
     const response = await axios.get(APPLE_ROOT_URL);
     const publicKeys = response.data;
-
+    console.log(response);
     // Decode JWT header to get kid
     const header = jwt.decode(signedPayload, { complete: true }).header;
-
+    console.log(header);
     // Find matching public key
     const publicKey = publicKeys.keys.find((key) => key.kid === header.kid);
-
+    console.log('pk', publicKey);
     if (!publicKey) throw new Error('Public key not found');
 
     // Convert JWK to PEM format
     const pem = `-----BEGIN PUBLIC KEY-----\n${publicKey.x5c[0]}\n-----END PUBLIC KEY-----`;
-
+    console.log('pem', pem);
     // Verify JWT
     return jwt.verify(signedPayload, pem, {
       algorithms: ['ES256'],
@@ -403,7 +404,9 @@ const subscriptionWebhooksHandler = async (req, res) => {
   try {
     console.log('req', req);
     console.log('req.headers', req.headers);
+    console.log('req.body', req.body);
     const decodedPayload = await verifyAppleJWT(req.body.signedPayload);
+    console.log('decodedPayload', decodedPayload);
     const notification = decodedPayload.payload;
 
     console.log('Received Apple notification:', notification);
@@ -412,26 +415,26 @@ const subscriptionWebhooksHandler = async (req, res) => {
     switch (notification.notificationType) {
       case 'INITIAL_BUY':
         // await handleInitialPurchase(notification);
-        console.log('initial buy')
+        console.log('initial buy');
         break;
 
       case 'CANCEL':
         // await handleCancellation(notification);
-        console.log('initial buy')
+        console.log('initial buy');
         break;
 
       case 'DID_CHANGE_RENEWAL_PREF':
-        console.log('ddi change renewal')
+        console.log('ddi change renewal');
         // await handleRenewalChange(notification);
         break;
 
       case 'DID_FAIL_TO_RENEW':
-        console.log('did fail to renew')
+        console.log('did fail to renew');
         // await handleRenewalFailure(notification);
         break;
 
       case 'DID_RENEW':
-        console.log('initial buy')
+        console.log('initial buy');
         // await handleSuccessfulRenewal(notification);
         break;
 

@@ -18,7 +18,7 @@ const port = process.env.PORT || 8080;
 app.use(express.json());
 
 app.use(
-  '/event-management/payment/webhook',
+  '/event-management/payment/webhooks',
   express.raw({ type: 'application/json' })
 );
 // app.use(

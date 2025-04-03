@@ -12,7 +12,7 @@ paymentRouter.post(
   authentication,
   paymentIntentCreationHandler
 );
-paymentRouter.post('/webhook', handleStripeWebhookHandler);
+paymentRouter.post('/webhooks', handleStripeWebhookHandler);
 
 // for test only
 paymentRouter.post('/test-payment', confirmPaymentHandler);
