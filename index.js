@@ -21,12 +21,6 @@ app.use(
   express.raw({ type: 'application/json' })
 );
 app.use(express.json());
-// app.use(
-//   '/event-management/subscription/webhooks',
-//   // express.raw({ type: 'application/json' })
-//   express.json()
-// );
-
 app.use(express.urlencoded({ extended: true }));
 
 // Template Engine

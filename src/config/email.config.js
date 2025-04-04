@@ -17,7 +17,7 @@ const sendVerificationEmail = async (email, token) => {
     // const logoUrl = 'https://i.ibb.co/jkPfpH0m/eventify-icon-filled-256.png';
     // red logo
     const logoUrl =
-      'https://i.ibb.co/x8wP5SRs/background-replacer-result-2.png';
+      'https://i.ibb.co/B29jMVLt/background-replacer-result-2.png';
     // const imageUrl =
     //   'https://img.freepik.com/premium-vector/opened-envelope-document-with-green-check-mark-line-icon-official-confirmation-message-mail-sent-successfully-email-delivery-verification-email-flat-design-vector_662353-720.jpg';
 
@@ -66,7 +66,7 @@ const sendResetPasswordEmail = async (email, resetToken, userName) => {
     // const logoUrl = 'https://i.ibb.co/jkPfpH0m/eventify-icon-filled-256.png';
     // red logo
     const logoUrl =
-      'https://i.ibb.co/x8wP5SRs/background-replacer-result-2.png';
+      'https://i.ibb.co/B29jMVLt/background-replacer-result-2.png';
 
     // Render the EJS template
     const emailTemplatePath = path.resolve(

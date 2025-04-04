@@ -39,6 +39,7 @@ const {
   STATUS_SUCCESS,
   STATUS_CREATED,
   STATUS_FORBIDDEN,
+  APP,
 } = require('../../../utils/common/constants');
 const {
   sendVerificationEmail,
@@ -285,19 +286,27 @@ async function userVerificationHandler(req, res) {
       );
     }
     if (user.isEmailVerified) {
-      return errorResponseWithoutData(
-        res,
-        STATUS_BAD_REQUEST,
-        COMMON_MSG.VERIFIED_SUCCESS.replace('##', 'email')
-      );
+      return res.render('verifySuccess.template.ejs', {
+        userName: user.firstName,
+        email: user.email,
+        appName: APP.NAME,
+        alreadyVerified: true,
+      });
     }
     user.isEmailVerified = true;
     await user.save();
-    return successResponseWithoutData(
-      res,
-      STATUS_SUCCESS,
-      COMMON_MSG.VERIFIED_SUCCESS.replace('##', 'email')
-    );
+
+    return res.render('verifySuccess.template.ejs', {
+      userName: user.firstName,
+      email: user.email,
+      appName: APP.NAME,
+      alreadyVerified: false,
+    });
+    // return successResponseWithoutData(
+    //   res,
+    //   STATUS_SUCCESS,
+    //   COMMON_MSG.VERIFIED_SUCCESS.replace('##', 'email')
+    // );
   } catch (error) {
     console.error('Verification error:', error);
     if (error.name === 'TokenExpiredError') {

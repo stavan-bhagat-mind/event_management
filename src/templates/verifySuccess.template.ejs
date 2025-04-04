@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= alreadyVerified ? 'Already Verified' : 'Email Verification Successful' %></title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --primary-red: #e53935;
+        --primary-green: #43a047;
+        --dark-red: #c62828;
+        --light-red: #ffebee;
+        --white: #ffffff;
+        --gray: #f5f5f5;
+        --dark-gray: #757575;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: 'Roboto', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      body {
+        background-color: var(--gray);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        background-color: var(--white);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        width: 100%;
+        max-width: 500px;
+        text-align: center;
+      }
+
+      .header {
+        background-color: var(--primary-red);
+        color: var(--white);
+        padding: 30px 20px;
+        position: relative;
+      }
+
+      .header h1 {
+        font-size: 24px;
+        font-weight: 500;
+        margin-bottom: 8px;
+      }
+
+      .header p {
+        font-size: 16px;
+        opacity: 0.9;
+      }
+
+      .success-icon-wrapper {
+        position: relative;
+        height: 30px;
+      }
+
+      .success-icon {
+  width: 70px;
+  height: 70px;
+  position: absolute;
+  top: -35px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--primary-green);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  /* border: 2px solid #4CAF50;  */
+}
+
+.success-icon svg {
+  width: 40px;
+  height: 40px;
+  fill: #4CAF50; 
+  stroke: #4CAF50;
+  stroke-width: 0.5;
+}
+      .content {
+        padding: 20px 30px 40px;
+      }
+
+      .message {
+        margin: 20px 0 30px;
+        color: #333;
+        line-height: 1.6;
+      }
+
+      .message h2 {
+        font-size: 22px;
+        margin-bottom: 15px;
+        color: #333;
+      }
+
+      .app-notice {
+        background-color: var(--light-red);
+        border-radius: 4px;
+        padding: 12px 15px;
+        margin: 20px 0;
+        color: #333;
+        font-size: 15px;
+      }
+
+      .footer {
+        margin-top: 30px;
+        color: var(--dark-gray);
+        font-size: 14px;
+      }
+
+      .footer a {
+        color: var(--primary-green);
+        text-decoration: none;
+      }
+
+      .footer a:hover {
+        text-decoration: underline;
+      }
+
+      @media (max-width: 480px) {
+        .container {
+          box-shadow: none;
+        }
+
+        .header {
+          padding: 25px 15px;
+        }
+
+        .content {
+          padding: 15px 20px 30px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1><%= alreadyVerified ? 'Already Verified' : 'Email Verification' %></h1>
+      </div>
+
+      <div class="success-icon-wrapper">
+        <div class="success-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M0 0h24v24H0z" fill="none" />
+            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" stroke="#FFFFFF" stroke-width="1" fill="#FFFFFF" />
+          </svg>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="message">
+          <h2><%= alreadyVerified ? 'Already Verified' : 'Verification Successful' %></h2>
+          <p>
+            <% if (alreadyVerified) { %>
+              Dear <span style="font-weight:500;color: #be2828;"><%= userName %></span>, your email <%= email %> has already been verified.
+            <% } else { %>
+              Dear <span style="font-weight: 400; color: #be2828;"><%= userName %></span>, thank you for verifying your account. Your email <%= email %> has been successfully verified.
+            <% } %>
+          </p>
+        </div>
+
+        <div class="app-notice">
+          Please return to the <%= appName %> app and log in with your credentials.
+        </div>
+
+        <div class="footer">
+          <p>
+            If you have any questions, please contact our
+            <a href="mailto:support@example.com">support team</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </body>
+  </html>
+
+    <!-- <body>
+    <div class="container">
+      <div class="header">
+        <h1>Email Verification</h1>
+      </div>
+
+      <div class="success-icon-wrapper">
+        <div class="success-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M0 0h24v24H0z" fill="none" />
+            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" stroke="#FFFFFF" stroke-width="1" fill="#FFFFFF" />
+          </svg>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="message">
+          <h2>Verification Successful</h2>
+          <p>
+            <p>Dear <%= userName %>, thank you for verifying your account</p>
+            Your email <%= email %> has been successfully verified.
+          </p>
+        </div>
+
+        <div class="app-notice">
+          Please return to the <%= appName %> app and log in with your credentials.
+        </div>
+
+        <div class="footer">
+          <p>
+            If you have any questions, please contact our
+            <a href="mailto:support@example.com">support team</a>.
+          </p>
+        </div>
+      </div>
+    </div>
+  </body> -->
