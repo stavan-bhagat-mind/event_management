@@ -12,22 +12,29 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const sendVerificationEmail = async (email, token) => {
+const sendVerificationEmail = async (
+  email,
+  token,
+  emailType = 'verification'
+) => {
   try {
-    // const logoUrl = 'https://i.ibb.co/jkPfpH0m/eventify-icon-filled-256.png';
-    // red logo
     const logoUrl =
       'https://i.ibb.co/B29jMVLt/background-replacer-result-2.png';
-    // const imageUrl =
-    //   'https://img.freepik.com/premium-vector/opened-envelope-document-with-green-check-mark-line-icon-official-confirmation-message-mail-sent-successfully-email-delivery-verification-email-flat-design-vector_662353-720.jpg';
-
     const imageUrl =
       'https://cdn.pixabay.com/photo/2017/03/17/06/47/email-2151046_640.png';
-    // const imageUrl =
-    //   'https://banner2.cleanpng.com/20180621/lao/kisspng-business-management-industry-email-service-red-email-5b2c1b02b16672.8503048015296171547266.jpg';
-    const verificationUrl = `${process.env.BASEURL}/event-management/user/verify/${token}`;
+
+    let verificationUrl, subject;
+
+    if (emailType === 'reactivate') {
+      verificationUrl = `${process.env.BASEURL}/event-management/user/verify/${token}`;
+      subject = EMAIL.SUBJECTS.REACTIVATE_ACCOUNT || 'Reactivate Your Account';
+    } else {
+      verificationUrl = `${process.env.BASEURL}/event-management/user/verify/${token}`;
+      subject = EMAIL.SUBJECTS.VERIFY_EMAIL || 'Verify Your Email';
+    }
+
     const appName = APP.NAME;
-    // Render the EJS template
+
     const emailTemplatePath = path.resolve(
       __dirname,
       '../../src/emails/templates/verifyUser.template.ejs'
@@ -38,13 +45,14 @@ const sendVerificationEmail = async (email, token) => {
       logoUrl,
       imageUrl,
       email,
-      supportUrl: 'www.www.onion',
+      supportUrl: 'https://support.google.com',
+      emailType,
     });
 
     // Send the email
     await transporter.sendMail({
       to: email,
-      subject: EMAIL.SUBJECTS.VERIFY_EMAIL,
+      subject: subject,
       html: emailBody,
     });
 

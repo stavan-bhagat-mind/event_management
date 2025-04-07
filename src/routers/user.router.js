@@ -39,6 +39,6 @@ userRouter.post(
 );
 userRouter.post('/reset-password', verifyAndResetPasswordHandler);
 userRouter.patch('/update-password', authentication, updatePasswordHandler);
-userRouter.delete('/delete', deleteUser);
+userRouter.delete('/delete', authentication, deleteUser);
 
 module.exports = userRouter;

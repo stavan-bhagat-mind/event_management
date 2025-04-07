@@ -57,11 +57,58 @@ async function registerHandler(req, res) {
     }
     // Check for existing user
     const existingUser = await Models.User.findOne({ email: value.email });
+
     if (existingUser) {
-      return errorResponseWithoutData(
+      if (!existingUser.deletedAt) {
+        return errorResponseWithoutData(
+          res,
+          STATUS_STATUS_CONFLICT,
+          COMMON_MSG.ALREADY_EXISTS.replace('##', USER)
+        );
+      }
+      //reactivate the account
+      const hashedPassword = await bcrypt.hash(value.password, 10);
+
+      // Generate new verification token
+      const emailVerificationToken = jwt.sign(
+        { email: value.email },
+        process.env.VERIFY_SECRET,
+        { expiresIn: process.env.VERIFY_EXPIRY_TIME }
+      );
+
+      // Update user details
+      await Models.User.findByIdAndUpdate(existingUser._id, {
+        firstName: value.firstName,
+        lastName: value.lastName,
+        userType: value.userType,
+        password: hashedPassword,
+        contactNumber: value.contactNumber,
+        deletedAt: null,
+        accountStatus: 'active',
+        isEmailVerified: false,
+      });
+
+      // Send verification email
+      await sendVerificationEmail(
+        value.email,
+        emailVerificationToken,
+        'reactivate'
+      );
+
+      return successResponseData(
         res,
-        STATUS_STATUS_CONFLICT,
-        COMMON_MSG.ALREADY_EXISTS.replace('##', USER)
+        {
+          id: existingUser._id,
+          firstName: value.firstName,
+          lastName: value.lastName,
+          email: value.email,
+          userType: value.userType,
+          isEmailVerified: false,
+          contactNumber: value.contactNumber,
+          createdAt: existingUser.createdAt,
+        },
+        STATUS_CREATED,
+        'We have found previous association with this email. please verify your email for reactivation and recovery of your account.'
       );
     }
 
@@ -579,7 +626,6 @@ async function verifyAndResetPasswordHandler(req, res) {
 // delete user account
 async function deleteUser(req, res) {
   try {
-    // const email = req.query.email;
     const userId = req.userId;
 
     const user = await Models.User.findById(userId);
@@ -590,17 +636,23 @@ async function deleteUser(req, res) {
         COMMON_MSG.NOT_FOUND.replace('##', USER)
       );
     }
-    if (user.profilePictureUrl) {
-      try {
-        await FileService.deleteFile(user.profilePictureUrl);
-      } catch (error) {
-        console.error(`Failed to delete image from storage: ${error.message}`);
-      }
-    }
-    // Respond with a success message
-    console.log(`user ${user.email} deleted`);
-    await Models.User.deleteOne({ _id: userId });
-    // return res.status(200).json({ message: 'User  deleted successfully.' });
+
+    await Models.User.findByIdAndUpdate(userId, {
+      deletedAt: new Date(),
+      accountStatus: 'inactive',
+      isEmailVerified: false,
+    });
+
+    // Only delete the profile picture if needed
+    // if (user.profilePictureUrl) {
+    //   try {
+    //     await FileService.deleteFile(user.profilePictureUrl);
+    //   } catch (error) {
+    //     console.error(`Failed to delete image from storage: ${error.message}`);
+    //   }
+    // }
+
+    console.log(`User ${user.email} soft deleted`);
     return successResponseWithoutData(
       res,
       STATUS_SUCCESS,

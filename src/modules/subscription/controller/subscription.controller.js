@@ -1,6 +1,7 @@
 const Models = require('../../../models/index');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
+const jws = require('jws');
 const {
   successResponseData,
   errorResponseData,
@@ -24,7 +25,10 @@ const {
 } = require('../../../utils/common/constants');
 const FileService = require('../../../services/file.service');
 const { verifyJWS, verifyLegacyReceipt } = require('../../../helpers/helper');
-const { PRODUCT_ID } = require('../utils/subscription.constant');
+const {
+  PRODUCT_ID,
+  NOTIFICATION_TYPES,
+} = require('../utils/subscription.constant');
 const {
   SUBSCRIPTION_SUCCESSFULLY_VALIDATED,
 } = require('../utils/subscription.messages');
@@ -64,265 +68,6 @@ const validateReceiptHandler = async (req, res) => {
   }
 };
 
-// webhooks for verification
-// const subscriptionWebhooksHandler = async (req, res) => {
-//   try {
-//     // Verify Apple's JWT first
-//     const appleCertUrl = req.headers['x-apple-certificate-url'];
-//     const appleSignature = req.headers['x-apple-signature'];
-
-//     if (!appleCertUrl || !appleSignature) {
-//       return res.status(401).send('Missing Apple headers');
-//     }
-
-//     // Get the signed payload from the notification body
-//     const signedPayload = req.body.signedPayload;
-//     if (!signedPayload) {
-//       return res.status(400).send('Missing signedPayload');
-//     }
-
-//     // Verify the JWT
-//     const decoded = await verifyAppleJWT(signedPayload, appleCertUrl);
-//     if (!decoded) {
-//       return res.status(401).send('Invalid signature');
-//     }
-
-//     const payload = decoded.payload;
-//     console.log('Decoded payload:', payload);
-
-//     // Extract transaction ID (new format for App Store Server Notifications v2)
-//     const originalTransactionId = payload.data?.signedTransactionInfo
-//       ? JSON.parse(payload.data.signedTransactionInfo).originalTransactionId
-//       : payload.originalTransactionId;
-
-//     if (!originalTransactionId) {
-//       return res.status(400).json({ error: 'Missing transaction ID' });
-//     }
-
-//     const subscription = await Models.Subscription.findOne({
-//       originalTransactionId,
-//     }).populate('user');
-
-//     if (!subscription) {
-//       return res.status(404).json({ error: 'Subscription not found' });
-//     }
-
-//     // Handle different notification types
-//     switch (payload.notificationType) {
-//       case 'SUBSCRIBED':
-//         await handleInitialPurchase(subscription, payload);
-//         break;
-//       case 'DID_RENEW':
-//         await handleRenewal(subscription, payload);
-//         break;
-//       case 'DID_FAIL_TO_RENEW':
-//         await handleFailedRenewal(subscription, payload);
-//         break;
-//       case 'CANCEL':
-//         await handleCancellation(subscription, payload);
-//         break;
-//       case 'DID_CHANGE_RENEWAL_STATUS':
-//         await handleRenewalStatusChange(subscription, payload);
-//         break;
-//       case 'EXPIRED':
-//         await handleExpiration(subscription, payload);
-//         break;
-//       // case 'INTERACTIVE_RENEWAL':
-//       //   await handleInteractiveRenewal(subscription, payload);
-//       //   break;
-//       // case 'PRICE_INCREASE_CONSENT':
-//       //   await handlePriceIncreaseConsent(subscription, payload);
-//       //   break;
-//       default:
-//         console.log('Unhandled notification type:', payload.notificationType);
-//     }
-//     // Respond to Apple immediately to acknowledge receipt
-//     res.status(200).send('OK');
-//   } catch (error) {
-//     console.error('Webhook error:', error);
-//     res.status(500).send('Internal error');
-//   }
-// };
-
-// // Add this handler function with your other handlers
-// const handleExpiration = async (subscription, notification) => {
-//   try {
-//     const latestReceiptInfo =
-//       notification.unified_receipt?.latest_receipt_info?.[0];
-
-//     // Update subscription status and expiration
-//     subscription.active = false;
-//     // subscription.status = 'EXPIRED';
-
-//     if (latestReceiptInfo?.expires_date_ms) {
-//       subscription.expiresDate = new Date(
-//         parseInt(latestReceiptInfo.expires_date_ms)
-//       );
-//     } else {
-//       subscription.expiresDate = new Date();
-//     }
-
-//     // additional expiration tracking
-//     subscription.expirationReason = notification.expiration_reason || 'natural';
-//     subscription.expiredAt = new Date();
-
-//     await subscription.save();
-
-//     console.log(`Subscription expired for ${subscription.user}`);
-//     //  might trigger email notifications
-//   } catch (error) {
-//     console.error('Error handling expiration:', error);
-//     throw error;
-//   }
-// };
-// // Verify Apple JWT
-// const verifyAppleJWT = async (signedPayload, appleCertUrl) => {
-//   try {
-//     // Fetch Apple's certificate
-//     const response = await axios.get(appleCertUrl, {
-//       headers: { 'User-Agent': 'Node.js' },
-//     });
-
-//     // Convert PEM certificate to public key
-//     const certificate = `-----BEGIN CERTIFICATE-----\n${response.data}\n-----END CERTIFICATE-----`;
-//     const publicKey = crypto.createPublicKey(certificate);
-
-//     // Verify the JWT
-//     const decoded = jwt.verify(signedPayload, publicKey, {
-//       algorithms: ['ES256'],
-//       complete: true,
-//     });
-
-//     return decoded;
-//   } catch (error) {
-//     console.error('JWT verification failed:', error);
-//     return false;
-//   }
-// };
-
-// // Helper functions
-// const handleInitialPurchase = async (subscription, notification) => {
-//   try {
-//     console.log(subscription, '------------------------', notification);
-//     const latestReceiptInfo =
-//       notification.unified_receipt.latest_receipt_info[0];
-
-//     // Update subscription status
-//     subscription.status = 'ACTIVE';
-//     subscription.expiresDate = new Date(
-//       parseInt(latestReceiptInfo.expires_date_ms)
-//     );
-//     subscription.productId = latestReceiptInfo.product_id;
-
-//     // If this is the first time seeing this subscription
-//     if (!subscription.purchaseDate) {
-//       subscription.purchaseDate = new Date(
-//         parseInt(latestReceiptInfo.purchase_date_ms)
-//       );
-//     }
-
-//     await subscription.save();
-
-//     console.log(`Initial purchase processed for ${subscription.user}`);
-//   } catch (error) {
-//     console.error('Error handling initial purchase:', error);
-//   }
-// };
-// // renewal
-// const handleRenewal = async (subscription, notification) => {
-//   try {
-//     const latestReceiptInfo =
-//       notification.unified_receipt.latest_receipt_info[0];
-
-//     // Update subscription with new expiry date
-//     // subscription.status = 'ACTIVE';
-//     subscription.expiresDate = new Date(
-//       parseInt(latestReceiptInfo.expires_date_ms)
-//     );
-//     subscription.renewalCount = (subscription.renewalCount || 0) + 1;
-
-//     await subscription.save();
-
-//     console.log(`Renewal processed for ${subscription.user}`);
-//   } catch (error) {
-//     console.error('Error handling renewal:', error);
-//   }
-// };
-// // failed renewal
-// const handleFailedRenewal = async (subscription, notification) => {
-//   try {
-//     const latestReceiptInfo =
-//       notification.unified_receipt.latest_receipt_info[0];
-//     const expirationDate = new Date(
-//       parseInt(latestReceiptInfo.expires_date_ms)
-//     );
-
-//     // Only mark as expired if actually expired
-//     if (expirationDate < new Date()) {
-//       subscription.status = 'EXPIRED';
-//       await subscription.save();
-//       console.log(`Subscription expired for ${subscription.user}`);
-//     } else {
-//       console.log(
-//         `Failed renewal but still within grace period for ${subscription.user}`
-//       );
-//     }
-//   } catch (error) {
-//     console.error('Error handling failed renewal:', error);
-//   }
-// };
-// // cancellation`
-// const handleCancellation = async (subscription, notification) => {
-//   try {
-//     console.log('subscription, notification', subscription, notification);
-//     // Apple may send cancellation for various reasons
-//     const cancellationDate = new Date(
-//       parseInt(notification.cancellation_date_ms)
-//     );
-
-//     // subscription.status = 'CANCELLED';
-//     subscription.cancellationDate = cancellationDate;
-//     subscription.cancellationReason =
-//       notification.cancellation_reason || 'user_cancelled';
-
-//     await subscription.save();
-
-//     console.log(`Cancellation processed for ${subscription.user}`);
-//   } catch (error) {
-//     console.error('Error handling cancellation:', error);
-//   }
-// };
-// //renewal status change
-// const handleRenewalStatusChange = async (subscription, notification) => {
-//   try {
-//     console.log('subscription, notification', subscription, notification);
-//     const autoRenewStatus = notification.auto_renew_status === 'true';
-//     const latestReceiptInfo =
-//       notification.unified_receipt.latest_receipt_info[0];
-
-//     subscription.autoRenewStatus = autoRenewStatus;
-
-//     if (!autoRenewStatus) {
-//       subscription.status = 'CANCELLED';
-//       subscription.cancellationReason = 'user_turned_off_auto_renew';
-//     } else {
-//       // User re-enabled auto-renewal
-//       subscription.status = 'ACTIVE';
-//       subscription.expiresDate = new Date(
-//         parseInt(latestReceiptInfo.expires_date_ms)
-//       );
-//     }
-
-//     await subscription.save();
-
-//     console.log(
-//       `Renewal status changed to ${autoRenewStatus} for ${subscription.user}`
-//     );
-//   } catch (error) {
-//     console.error('Error handling renewal status change:', error);
-//   }
-// };
-// Get Subscription status
 const getSubscriptionStatusHandler = async (req, res) => {
   try {
     // const { userId } = req.params;
@@ -365,120 +110,38 @@ const getSubscriptionStatusHandler = async (req, res) => {
 
 // -----------------------------------------------------------------------
 
-// Apple's public key URL
-const APPLE_ROOT_URL =
-  'https://apple.com/app-store-connect-notifications-public-key';
-
-async function verifyAppleJWT(signedPayload) {
-  try {
-    // Get Apple's public keys
-    console.log('------------------------------inside jwt----------------');
-    const response = await axios.get(APPLE_ROOT_URL);
-    const publicKeys = response.data;
-    console.log(response);
-    // Decode JWT header to get kid
-    const header = jwt.decode(signedPayload, { complete: true }).header;
-    console.log(header);
-    // Find matching public key
-    const publicKey = publicKeys.keys.find((key) => key.kid === header.kid);
-    console.log('pk', publicKey);
-    if (!publicKey) throw new Error('Public key not found');
-
-    // Convert JWK to PEM format
-    const pem = `-----BEGIN PUBLIC KEY-----\n${publicKey.x5c[0]}\n-----END PUBLIC KEY-----`;
-    console.log('pem', pem);
-    // Verify JWT
-    return jwt.verify(signedPayload, pem, {
-      algorithms: ['ES256'],
-      issuer: 'App Store Connect',
-      audience: process.env.APPLE_BUNDLE_ID,
-    });
-  } catch (error) {
-    console.error('JWT verification failed:', error);
-    throw error;
-  }
-}
-
 // Webhook handler for App Store Server Notifications
 const subscriptionWebhooksHandler = async (req, res) => {
   try {
+    console.log('Received App Store notification');
     console.log('req', req);
     console.log('req.headers', req.headers);
     console.log('req.body', req.body);
-    const decodedPayload = await verifyAppleJWT(req.body.signedPayload);
-    console.log('decodedPayload', decodedPayload);
-    const notification = decodedPayload.payload;
 
-    console.log('Received Apple notification:', notification);
+    // Get the signed payload (JWS) from the request body
+    const signedPayload = req.body.signedPayload;
 
-    // Handle different notification types
-    switch (notification.notificationType) {
-      case 'INITIAL_BUY':
-        // await handleInitialPurchase(notification);
-        console.log('initial buy');
-        break;
-
-      case 'CANCEL':
-        // await handleCancellation(notification);
-        console.log('initial buy');
-        break;
-
-      case 'DID_CHANGE_RENEWAL_PREF':
-        console.log('ddi change renewal');
-        // await handleRenewalChange(notification);
-        break;
-
-      case 'DID_FAIL_TO_RENEW':
-        console.log('did fail to renew');
-        // await handleRenewalFailure(notification);
-        break;
-
-      case 'DID_RENEW':
-        console.log('initial buy');
-        // await handleSuccessfulRenewal(notification);
-        break;
-
-      case 'EXPIRED':
-        // await handleExpiration(notification);
-        break;
-
-      // Add more cases as needed
-      default:
-        console.warn(
-          'Unhandled notification type:',
-          notification.notificationType
-        );
+    if (!signedPayload) {
+      console.error('No signedPayload in request body');
+      return res.status(400).json({ error: 'Missing signedPayload' });
     }
-    // // ======================
-    // // 1. Determine Notification Type
-    // // ======================
-    // if (notification.signedPayload) {
-    //   // V2 JWT Notification
-    //   const decoded = await handleJWTNotification(notification.signedPayload);
-    //   console.log('Decoded V2 Notification:', decoded);
 
-    //   originalTransactionId = extractV2TransactionId(decoded);
-    //   subscription = await findSubscription(originalTransactionId);
+    try {
+      // Verify and decode the JWS
+      const decodedPayload = await verifyAndDecodeSignature(signedPayload);
+      console.log('Decoded payload:', decodedPayload);
 
-    //   // await handleV2Notification(decoded, subscription);
-    //   await handleAnyNotification(decoded, subscription);
-    // } else if (notification.unified_receipt) {
-    //   // V1 Legacy Notification
-    //   console.log('Legacy V1 Notification:', notification);
+      // Process the notification based on its type
+      await processNotification(decodedPayload);
 
-    //   originalTransactionId = extractV1TransactionId(notification);
-    //   subscription = await findSubscription(originalTransactionId);
-
-    //   // await handleV1Notification(notification, subscription);
-    //   await handleAnyNotification(notification, subscription);
-    // } else {
-    //   throw new Error('Unrecognized notification format');
-    // }
-
-    // // ======================
-    // // 2. Send Response
-    // // ======================
-    res.status(200).send('OK');
+      // Always respond with 200 OK to acknowledge receipt
+      return res.status(200).json({ received: true });
+    } catch (error) {
+      console.error('Error processing signedPayload:', error);
+      // Still return 200 to prevent Apple from retrying
+      // Log the error for your analysis
+      return res.status(200).json({ received: true, error: error.message });
+    }
   } catch (error) {
     console.error('Webhook Processing Error:', {
       error: error.message,
@@ -488,413 +151,441 @@ const subscriptionWebhooksHandler = async (req, res) => {
     res.status(500).send('Internal error');
   }
 };
-
-// ======================
-// Helper Functions
-// ======================
-
-// Transaction ID Extractors
-const extractV2TransactionId = (notification) => {
+// Function to verify and decode the JWS signature using jws library
+const verifyAndDecodeSignature = async (signedPayload) => {
   try {
-    if (notification.data?.signedTransactionInfo) {
-      const transactionInfo = jwt.decode(
-        notification.data.signedTransactionInfo,
-        { complete: true }
-      ).payload;
-      return transactionInfo.originalTransactionId;
+    // Decode the JWS without verification first
+    const decoded = jws.decode(signedPayload);
+
+    console.log('Decoded JWS:', decoded);
+
+    if (!decoded) {
+      throw new Error('Invalid JWS format');
     }
-    throw new Error('Missing transaction info in V2 payload');
+
+    // Extract the header and verify it contains the necessary certificate info
+    const header = decoded.header;
+    console.log('Header:', header);
+    if (!header.x5c || !Array.isArray(header.x5c) || header.x5c.length === 0) {
+      throw new Error('Missing certificate chain in JWS header');
+    }
+
+    // Get the certificate from the header
+    const certPem = formatPemCertificate(header.x5c[0]);
+    console.log('Certificate PEM:', certPem);
+    // In production, verify the cert chain back to Apple's root CA
+    // For now, just verify the signature using the provided cert
+    const verified = jws.verify(signedPayload, header.alg, certPem);
+
+    if (!verified) {
+      throw new Error('JWS signature verification failed');
+    }
+
+    // Parse the payload
+    const payload = JSON.parse(decoded.payload);
+    console.log('Payload:', payload);
+    return payload;
   } catch (error) {
-    console.error('V2 Transaction ID Extraction Error:', error);
-    throw error;
+    console.error('Error verifying and decoding signature:', error);
+    throw new Error(`Invalid signature: ${error.message}`);
   }
 };
 
-const extractV1TransactionId = (notification) => {
-  try {
-    const receiptInfo = notification.unified_receipt?.latest_receipt_info?.[0];
-    if (!receiptInfo) throw new Error('Missing receipt info in V1 payload');
-    return receiptInfo.original_transaction_id;
-  } catch (error) {
-    console.error('V1 Transaction ID Extraction Error:', error);
-    throw error;
-  }
+// Helper to format a base64 certificate as PEM
+const formatPemCertificate = (certBase64) => {
+  const pemCert =
+    '-----BEGIN CERTIFICATE-----\n' +
+    certBase64.match(/.{1,64}/g).join('\n') +
+    '\n-----END CERTIFICATE-----';
+  return pemCert;
 };
 
-// Database Operations
-const findSubscription = async (originalTransactionId) => {
-  if (!originalTransactionId) {
-    throw new Error('No transaction ID provided');
-  }
+// Function to process notifications based on type
+const processNotification = async (decodedPayload) => {
+  const notificationType = decodedPayload.notificationType;
+  const subtype = decodedPayload.subtype;
+  const data = decodedPayload.data;
 
-  const subscription = await Models.Subscription.findOne({
-    originalTransactionId,
-  }).populate('user');
+  console.log(
+    `Processing notification type: ${notificationType}, subtype: ${subtype}`
+  );
 
-  if (!subscription) {
-    console.warn(
-      'Subscription not found for transaction ID:',
-      originalTransactionId
-    );
-    throw new Error('Subscription not found');
-  }
-
-  return subscription;
-};
-
-// ======================
-// Notification Handlers
-// ======================
-
-const handleAnyNotification = async (notification, subscription) => {
-  // Normalize the notification type
-  const notificationType =
-    notification.notificationType || notification.notification_type;
-
-  // Normalize event names to V2 format
-  const normalizedType =
-    {
-      SUBSCRIBED: 'INITIAL_BUY',
-      DID_RENEW: 'RENEWAL',
-      DID_FAIL_TO_RENEW: 'FAILED_RENEWAL',
-      DID_RECOVER: 'RECOVERED',
-    }[notificationType] || notificationType;
-
-  switch (normalizedType) {
-    case 'INITIAL_BUY':
-      await handleInitialPurchase(subscription, notification);
+  switch (notificationType) {
+    case NOTIFICATION_TYPES.SUBSCRIBED:
+      await handleNewSubscription(data);
       break;
-
-    case 'RENEWAL':
-      await handleRenewal(subscription, notification);
+    case NOTIFICATION_TYPES.DID_RENEW:
+      await handleRenewal(data);
       break;
-
-    case 'FAILED_RENEWAL':
-      await handleFailedRenewal(subscription, notification);
+    case NOTIFICATION_TYPES.DID_FAIL_TO_RENEW:
+      await handleFailedRenewal(data);
       break;
-
-    case 'CANCEL':
-    case 'REFUND':
-      await handleCancellation(subscription, notification);
+    case NOTIFICATION_TYPES.EXPIRED:
+      await handleExpiration(data);
       break;
-
-    case 'EXPIRED':
-      await handleExpiration(subscription, notification);
+    case NOTIFICATION_TYPES.REVOKE:
+      await handleRevocation(data);
       break;
-
-    case 'DID_CHANGE_RENEWAL_STATUS':
-    case 'AUTO_RENEW_STATUS':
-      await handleRenewalStatusChange(subscription, notification);
+    case NOTIFICATION_TYPES.REFUND:
+      await handleRefund(data);
       break;
-
-    case 'RECOVERED':
-      await handleRecovery(subscription, notification);
-      break;
-
-    case 'GRACE_PERIOD_EXPIRED':
-      await handleGracePeriodExpired(subscription, notification);
-      break;
-
+    // Add other notification types as needed
     default:
-      console.warn(
-        'Unhandled notification type:',
-        normalizedType,
-        'Original:',
-        notificationType
-      );
-    // Consider logging the full notification for debugging
-  }
-};
-// const handleV2Notification = async (notification, subscription) => {
-//   const notificationType = notification.notificationType;
-
-//   switch (notificationType) {
-//     case 'SUBSCRIBED':
-//     case 'INITIAL_BUY':
-//       await handleInitialPurchase(subscription, notification);
-//       break;
-
-//     case 'DID_RENEW':
-//     case 'RENEWAL':
-//       await handleRenewal(subscription, notification);
-//       break;
-
-//     case 'DID_FAIL_TO_RENEW':
-//     case 'FAILED_RENEWAL':
-//       await handleFailedRenewal(subscription, notification);
-//       break;
-
-//     case 'CANCEL':
-//     case 'REFUND':
-//       await handleCancellation(subscription, notification);
-//       break;
-
-//     case 'EXPIRED':
-//       await handleExpiration(subscription, notification);
-//       break;
-
-//     // Add other V2-specific cases as needed
-//     default:
-//       console.warn('Unhandled V2 notification type:', notificationType);
-//   }
-// };
-
-// const handleV1Notification = async (notification, subscription) => {
-//   const notificationType = notification.notification_type;
-
-//   switch (notificationType) {
-//     case 'SUBSCRIBED':
-//       await handleInitialPurchase(subscription, notification);
-//       break;
-
-//     case 'DID_RENEW':
-//       await handleRenewal(subscription, notification);
-//       break;
-
-//     case 'DID_FAIL_TO_RENEW':
-//       await handleFailedRenewal(subscription, notification);
-//       break;
-
-//     case 'CANCEL':
-//       await handleCancellation(subscription, notification);
-//       break;
-
-//     case 'EXPIRED':
-//       await handleExpiration(subscription, notification);
-//       break;
-
-//     // Add other V1-specific cases as needed
-//     default:
-//       console.warn('Unhandled V1 notification type:', notificationType);
-//   }
-// };
-
-// ======================
-// Event-Specific Handlers
-// ======================
-
-const handleInitialPurchase = async (subscription, notification) => {
-  try {
-    const receiptInfo = getLatestReceiptInfo(notification);
-
-    subscription.status = 'active';
-    subscription.expiresDate = parseDate(receiptInfo.expires_date_ms);
-    subscription.productId = receiptInfo.product_id;
-    subscription.isTrial = receiptInfo.is_trial_period === 'true';
-
-    if (!subscription.purchaseDate) {
-      subscription.purchaseDate = parseDate(receiptInfo.purchase_date_ms);
-    }
-
-    await subscription.save();
-    await updateUserSubscriptionStatus(subscription.user._id, 'active');
-
-    console.log(`Initial purchase processed for ${subscription.user._id}`);
-  } catch (error) {
-    console.error('Initial Purchase Handling Error:', error);
-    throw error;
+      console.log(`Unhandled notification type: ${notificationType}`);
+      // Store the notification for analysis
+      await storeRawNotification(decodedPayload);
   }
 };
 
-const handleRenewal = async (subscription, notification) => {
+// Handler for NEW subscription
+async function handleNewSubscription(data) {
   try {
-    const receiptInfo = getLatestReceiptInfo(notification);
+    const { signedTransactionInfo, appAppleId, bundleId, environment } = data;
 
-    subscription.status = 'active';
-    subscription.expiresDate = parseDate(receiptInfo.expires_date_ms);
-    subscription.renewalCount = (subscription.renewalCount || 0) + 1;
-    subscription.autoRenewStatus = true;
+    console.log('Received new subscription data:', data);
+    // Verify and decode the transaction information
+    const transactionInfo = await verifyAndDecodeSignature(
+      signedTransactionInfo
+    );
+    const {
+      originalTransactionId,
+      productId,
+      purchaseDate,
+      expiresDate,
+      offerType,
+    } = transactionInfo;
 
-    await subscription.save();
-    await updateUserSubscriptionStatus(subscription.user._id, 'active');
-
-    console.log(`Renewal processed for ${subscription.user._id}`);
-  } catch (error) {
-    console.error('Renewal Handling Error:', error);
-    throw error;
-  }
-};
-
-const handleFailedRenewal = async (subscription, notification) => {
-  try {
-    const receiptInfo = getLatestReceiptInfo(notification);
-    const expirationDate = parseDate(receiptInfo.expires_date_ms);
-
-    if (expirationDate < new Date()) {
-      subscription.status = 'expired';
-      subscription.expirationReason = 'payment_failed';
-      await subscription.save();
-      await updateUserSubscriptionStatus(subscription.user._id, 'expired');
-      console.log(
-        `Subscription expired for ${subscription.user._id} (payment failed)`
-      );
-    } else {
-      subscription.status = 'grace_period';
-      await subscription.save();
-      console.log(
-        `Payment failed but in grace period for ${subscription.user._id}`
-      );
-
-      // Optional: Trigger email notification about payment failure
-      await sendPaymentFailureEmail(subscription.user.email, {
-        retry_until: expirationDate,
-        amount: receiptInfo.price,
-        product: receiptInfo.product_id,
-      });
-    }
-  } catch (error) {
-    console.error('Failed Renewal Handling Error:', error);
-    throw error;
-  }
-};
-
-const handleCancellation = async (subscription, notification) => {
-  try {
-    subscription.status = 'canceled';
-    subscription.cancellationDate = notification.cancellation_date
-      ? new Date(notification.cancellation_date)
-      : new Date();
-
-    subscription.cancellationReason =
-      notification.cancellation_reason || 'user_cancelled';
-    subscription.autoRenewStatus = false;
-
-    await subscription.save();
-    await updateUserSubscriptionStatus(subscription.user._id, 'canceled');
-
-    console.log(`Cancellation processed for ${subscription.user._id}`);
-
-    // Optional: Send cancellation confirmation
-    if (notification.cancellation_reason !== 'billing_error') {
-      await sendCancellationEmail(subscription.user.email, {
-        effective_date: subscription.expiresDate,
-        reason: subscription.cancellationReason,
-      });
-    }
-  } catch (error) {
-    console.error('Cancellation Handling Error:', error);
-    throw error;
-  }
-};
-
-const handleExpiration = async (subscription, notification) => {
-  try {
-    subscription.status = 'expired';
-    subscription.expirationReason = notification.expiration_reason || 'natural';
-    subscription.expiredAt = new Date();
-
-    if (
-      notification.unified_receipt?.latest_receipt_info?.[0]?.expires_date_ms
-    ) {
-      subscription.expiresDate = parseDate(
-        notification.unified_receipt.latest_receipt_info[0].expires_date_ms
-      );
-    }
-
-    await subscription.save();
-    await updateUserSubscriptionStatus(subscription.user._id, 'expired');
-
-    console.log(`Subscription expired for ${subscription.user._id}`);
-
-    // Optional: Send expiration notice
-    await sendExpirationEmail(subscription.user.email, {
-      product: subscription.productId,
-      renewal_available: false,
+    // Find user by Apple ID (email)
+    const user = await Models.User.findOne({
+      email: appAppleId.toLowerCase().trim(),
     });
-  } catch (error) {
-    console.error('Expiration Handling Error:', error);
-    throw error;
-  }
-};
 
-const handleRenewalStatusChange = async (subscription, notification) => {
-  try {
-    const autoRenewStatus = notification.auto_renew_status === 'true';
-    subscription.autoRenewStatus = autoRenewStatus;
-
-    if (!autoRenewStatus) {
-      subscription.status = 'canceled';
-      subscription.cancellationReason = 'auto_renew_disabled';
-    } else {
-      subscription.status = 'active';
-      const receiptInfo = getLatestReceiptInfo(notification);
-      if (receiptInfo?.expires_date_ms) {
-        subscription.expiresDate = parseDate(receiptInfo.expires_date_ms);
-      }
+    if (!user) {
+      throw new Error(`User not found with email: ${appAppleId}`);
     }
 
-    await subscription.save();
-    await updateUserSubscriptionStatus(
-      subscription.user._id,
-      subscription.status
+    // Create/update subscription
+    const subscription = await Models.Subscription.findOneAndUpdate(
+      { originalTransactionId },
+      {
+        user: user._id,
+        originalTransactionId,
+        productId,
+        purchaseDate: new Date(purchaseDate),
+        expiresDate: new Date(expiresDate),
+        isActive: true,
+        autoRenewStatus: true,
+        environment,
+        status: 'active',
+        isTrial: offerType === 'TRIAL',
+      },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true,
+      }
+    );
+
+    // Update user's subscription status
+    await Models.User.findByIdAndUpdate(user._id, {
+      isSubscribed: true,
+      subscription: subscription._id,
+    });
+
+    console.log(`Processed subscription ${subscription._id} for ${appAppleId}`);
+    return subscription;
+  } catch (error) {
+    console.error('Subscription processing failed:', error);
+    throw error; // Propagate error for upstream handling
+  }
+}
+
+// Handler for subscription RENEWAL
+async function handleRenewal(data) {
+  try {
+    const { signedTransactionInfo } = data;
+    const transactionInfo = await verifyAndDecodeSignature(
+      signedTransactionInfo
+    );
+
+    const { originalTransactionId, transactionId, expiresDate } =
+      transactionInfo;
+
+    // Update subscription
+    const subscription = await Models.Subscription.findOneAndUpdate(
+      { originalTransactionId },
+      {
+        expiresDate: new Date(expiresDate),
+        isActive: true,
+        status: 'active',
+        lastVerified: new Date(),
+      },
+      { new: true }
+    );
+
+    if (!subscription) {
+      console.error(
+        `No subscription found for renewal: ${originalTransactionId}`
+      );
+      return;
+    }
+
+    // Update user subscription status
+    await Models.User.findByIdAndUpdate(subscription.user, {
+      isSubscribed: true,
+    });
+
+    console.log(`Subscription renewed: ${originalTransactionId}`);
+  } catch (error) {
+    console.error('Error processing renewal:', error);
+    throw error;
+  }
+}
+
+// Handler for RENEWAL STATUS CHANGE (auto-renew on/off)
+async function handleRenewalStatusChange(data) {
+  try {
+    const { signedTransactionInfo } = data;
+    const transactionInfo = await verifyAndDecodeSignature(
+      signedTransactionInfo
+    );
+
+    const { originalTransactionId, autoRenewStatus } = transactionInfo;
+
+    // Update subscription
+    await Models.Subscription.findOneAndUpdate(
+      { originalTransactionId },
+      {
+        autoRenewStatus: !!autoRenewStatus,
+        'pendingRenewalInfo.autoRenewStatus': !!autoRenewStatus,
+        lastVerified: new Date(),
+      }
     );
 
     console.log(
-      `Renewal status changed to ${autoRenewStatus} for ${subscription.user._id}`
+      `Subscription auto-renewal changed to ${autoRenewStatus} for: ${originalTransactionId}`
+    );
+  } catch (error) {
+    console.error('Error processing renewal status change:', error);
+    throw error;
+  }
+}
+
+// Handler for FAILED RENEWAL
+async function handleFailedRenewal(data) {
+  try {
+    const { signedTransactionInfo } = data;
+    const transactionInfo = await verifyAndDecodeSignature(
+      signedTransactionInfo
     );
 
-    // Optional: Send status change notification
-    await sendRenewalStatusEmail(subscription.user.email, {
-      auto_renew: autoRenewStatus,
-      next_billing_date: subscription.expiresDate,
-    });
+    const { originalTransactionId, expiresDate, gracePeriodExpiresDate } =
+      transactionInfo;
+
+    // Update subscription to grace period
+    const subscription = await Models.Subscription.findOneAndUpdate(
+      { originalTransactionId },
+      {
+        status: 'past_due',
+        expiresDate: new Date(expiresDate),
+        gracePeriodExpiresDate: gracePeriodExpiresDate
+          ? new Date(gracePeriodExpiresDate)
+          : null,
+        lastVerified: new Date(),
+      },
+      { new: true }
+    );
+
+    if (!subscription) {
+      console.error(
+        `No subscription found for failed renewal: ${originalTransactionId}`
+      );
+      return;
+    }
+
+    console.log(`Failed renewal for: ${originalTransactionId}`);
+
+    // Optionally notify user about billing issue
+    // notifyUserAboutBillingIssue(subscription.user);
   } catch (error) {
-    console.error('Renewal Status Change Handling Error:', error);
+    console.error('Error processing failed renewal:', error);
     throw error;
   }
-};
+}
 
-const handleRecovery = async (subscription, notification) => {
+// Handler for EXPIRATION
+async function handleExpiration(data) {
   try {
-    const receiptInfo = getLatestReceiptInfo(notification);
+    const { signedTransactionInfo } = data;
+    const transactionInfo = await verifyAndDecodeSignature(
+      signedTransactionInfo
+    );
 
-    subscription.status = 'active';
-    subscription.expiresDate = parseDate(receiptInfo.expires_date_ms);
-    subscription.autoRenewStatus = true;
-    subscription.recoveryDate = new Date();
+    const { originalTransactionId } = transactionInfo;
 
-    await subscription.save();
-    await updateUserSubscriptionStatus(subscription.user._id, 'active');
+    // Update subscription
+    const subscription = await Models.Subscription.findOneAndUpdate(
+      { originalTransactionId },
+      {
+        status: 'expired',
+        isActive: false,
+        lastVerified: new Date(),
+      },
+      { new: true }
+    );
 
-    console.log(`Subscription recovered for ${subscription.user._id}`);
+    if (!subscription) {
+      console.error(
+        `No subscription found for expiration: ${originalTransactionId}`
+      );
+      return;
+    }
 
-    // Optional: Send recovery confirmation
-    await sendRecoveryEmail(subscription.user.email, {
-      recovered_at: new Date(),
-      next_billing_date: subscription.expiresDate,
+    // Update user subscription status
+    await Models.User.findByIdAndUpdate(subscription.user, {
+      isSubscribed: false,
     });
+
+    console.log(`Subscription expired: ${originalTransactionId}`);
   } catch (error) {
-    console.error('Recovery Handling Error:', error);
+    console.error('Error processing expiration:', error);
     throw error;
   }
-};
+}
 
-const handleGracePeriodExpired = async (subscription, notification) => {
+// Handler for GRACE PERIOD EXPIRED
+async function handleGracePeriodExpired(data) {
   try {
-    subscription.status = 'expired';
-    subscription.expirationReason = 'grace_period_ended';
-    subscription.expiredAt = new Date();
+    const { signedTransactionInfo } = data;
+    const transactionInfo = await verifyAndDecodeSignature(
+      signedTransactionInfo
+    );
 
-    await subscription.save();
-    await updateUserSubscriptionStatus(subscription.user._id, 'expired');
+    const { originalTransactionId } = transactionInfo;
 
-    console.log(`Grace period expired for ${subscription.user._id}`);
+    // Update subscription
+    const subscription = await Models.Subscription.findOneAndUpdate(
+      { originalTransactionId },
+      {
+        status: 'expired',
+        isActive: false,
+        lastVerified: new Date(),
+      },
+      { new: true }
+    );
 
-    // Optional: Send final expiration notice
-    await sendGracePeriodExpiredEmail(subscription.user.email, {
-      product: subscription.productId,
-      last_active_date: subscription.expiresDate,
+    if (!subscription) {
+      console.error(
+        `No subscription found for grace period expiration: ${originalTransactionId}`
+      );
+      return;
+    }
+
+    // Update user subscription status
+    await Models.User.findByIdAndUpdate(subscription.user, {
+      isSubscribed: false,
     });
+
+    console.log(
+      `Grace period expired for subscription: ${originalTransactionId}`
+    );
   } catch (error) {
-    console.error('Grace Period Expired Handling Error:', error);
+    console.error('Error processing grace period expiration:', error);
     throw error;
   }
-};
+}
 
+// Handler for REVOCATION
+async function handleRevocation(data) {
+  try {
+    const { signedTransactionInfo } = data;
+    const transactionInfo = await verifyAndDecodeSignature(
+      signedTransactionInfo
+    );
+
+    const { originalTransactionId, revocationDate } = transactionInfo;
+
+    // Update subscription
+    const subscription = await Models.Subscription.findOneAndUpdate(
+      { originalTransactionId },
+      {
+        status: 'canceled',
+        isActive: false,
+        cancellationReason: 'revoked',
+        lastVerified: new Date(),
+      },
+      { new: true }
+    );
+
+    if (!subscription) {
+      console.error(
+        `No subscription found for revocation: ${originalTransactionId}`
+      );
+      return;
+    }
+
+    // Update user subscription status
+    await Models.User.findByIdAndUpdate(subscription.user, {
+      isSubscribed: false,
+    });
+
+    console.log(`Subscription revoked: ${originalTransactionId}`);
+  } catch (error) {
+    console.error('Error processing revocation:', error);
+    throw error;
+  }
+}
+
+// Handler for REFUND
+async function handleRefund(data) {
+  try {
+    const { signedTransactionInfo } = data;
+    const transactionInfo = await verifyAndDecodeSignature(
+      signedTransactionInfo
+    );
+
+    const { originalTransactionId } = transactionInfo;
+
+    // Update subscription
+    const subscription = await Models.Subscription.findOneAndUpdate(
+      { originalTransactionId },
+      {
+        status: 'canceled',
+        isActive: false,
+        cancellationReason: 'refunded',
+        lastVerified: new Date(),
+      },
+      { new: true }
+    );
+
+    if (!subscription) {
+      console.error(
+        `No subscription found for refund: ${originalTransactionId}`
+      );
+      return;
+    }
+
+    // Update user subscription status
+    await Models.User.findByIdAndUpdate(subscription.user, {
+      isSubscribed: false,
+    });
+
+    console.log(`Refund processed for: ${originalTransactionId}`);
+  } catch (error) {
+    console.error('Error processing refund:', error);
+    throw error;
+  }
+}
+
+// Helper to store raw notifications for debugging
+async function storeRawNotification(notification) {
+  // This could be implemented with a separate collection if needed
+  console.log('Storing raw notification for analysis', notification);
+}
 // ======================
 // Email Notification Helpers (Example Implementations)
 // ======================
-
+  
 const sendPaymentFailureEmail = async (email, data) => {
   // Implement your email service integration
   console.log(`[Email] Payment failure notice sent to ${email}`, data);
@@ -919,90 +610,6 @@ const sendRecoveryEmail = async (email, data) => {
 const sendGracePeriodExpiredEmail = async (email, data) => {
   console.log(`[Email] Grace period ended notice sent to ${email}`, data);
 };
-
-// ======================
-// Utility Functions
-// ======================
-
-const getLatestReceiptInfo = (notification) => {
-  if (notification.unified_receipt?.latest_receipt_info) {
-    return notification.unified_receipt.latest_receipt_info[0];
-  }
-  if (notification.data?.signedTransactionInfo) {
-    return jwt.decode(notification.data.signedTransactionInfo, {
-      complete: true,
-    }).payload;
-  }
-  throw new Error('No receipt information found');
-};
-
-const parseDate = (timestamp) => {
-  return timestamp ? new Date(parseInt(timestamp)) : null;
-};
-
-const updateUserSubscriptionStatus = async (userId, status) => {
-  const isSubscribed = ['active', 'trial'].includes(status);
-
-  await Models.User.findByIdAndUpdate(userId, {
-    isSubscribed,
-    ...(isSubscribed && { $setOnInsert: { subscription: subscription._id } }),
-  });
-};
-
-// const verifyAppleJWT = async (signedPayload) => {
-//   try {
-//     // 1. Decode without verification to get header
-//     const decoded = jwt.decode(signedPayload, { complete: true });
-//     if (!decoded?.header) {
-//       throw new Error('Invalid JWT structure');
-//     }
-
-//     // 2. Get Apple's public key
-//     const applePublicKeys = await fetchApplePublicKeys();
-//     const publicKey = findMatchingPublicKey(decoded.header, applePublicKeys);
-
-//     if (!publicKey) {
-//       throw new Error('No matching public key found');
-//     }
-
-//     // 3. Convert JWK to PEM format
-//     const pem = jwkToPem(publicKey);
-
-//     // 4. Verify the signature
-//     jwt.verify(signedPayload, pem, {
-//       algorithms: ['ES256'],
-//       complete: true,
-//     });
-
-//     return true;
-//   } catch (error) {
-//     console.error('JWT Verification Failed:', error.message);
-//     return false;
-//   }
-// };
-
-// Fetch Apple's public keys
-const fetchApplePublicKeys = async () => {
-  const response = await axios.get('https://appleid.apple.com/auth/keys');
-  return response.data.keys;
-};
-
-// Find the key that matches the JWT header
-const findMatchingPublicKey = (header, keys) => {
-  return keys.find((key) => key.kid === header.kid && key.alg === header.alg);
-};
-
-// Helper to verify the JWT's timestamp
-const verifyTokenTimestamps = (decoded) => {
-  const now = Math.floor(Date.now() / 1000);
-  if (decoded.payload.exp && decoded.payload.exp < now) {
-    throw new Error('Token expired');
-  }
-  if (decoded.payload.iat && decoded.payload.iat > now) {
-    throw new Error('Token issued in future');
-  }
-};
-
 // -----------------------
 module.exports = {
   validateReceiptHandler,

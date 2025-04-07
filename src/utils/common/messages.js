@@ -24,10 +24,12 @@ module.exports = {
     SUBJECTS: {
       VERIFY_EMAIL: 'Verify your email address',
       RESET_PASSWORD: 'Reset your password',
+      REACTIVATE_ACCOUNT: 'Reactivate Your Account',
     },
     MESSAGES: {
       VERIFY_EMAIL: 'Click the button below to verify your email address.',
       RESET_PASSWORD: 'Click the button below to reset your password.',
+      REACTIVATE_ACCOUNT: 'Click the button below to reactivate your account.',
     },
   },
   VERIFICATION_EMAIL_SENT: 'Verification email sent successfully.',
@@ -49,8 +51,7 @@ module.exports = {
   // email-Messages
   MSG_VERIFY_EMAIL: 'Please verify your email address.',
   MSG_RESET_PASSWORD_EMAIL_SENT: 'Reset password email sent successfully.',
-  MSG_MODIFICATION_RESTRICTED:
-    'Cannot ##, because there are existing @@.',
+  MSG_MODIFICATION_RESTRICTED: 'Cannot ##, because there are existing @@.',
   // http-Messages
   MSG_SUCCESS: 'Operation completed successfully.',
   MSG_CREATED: 'Resource created successfully.',
