@@ -1,39 +1,34 @@
 const Models = require('../../../models/index');
 require('dotenv').config();
-const jwt = require('jsonwebtoken');
 const jws = require('jws');
 const {
   successResponseData,
-  errorResponseData,
   errorResponseWithoutData,
-  validationErrorResponseData,
   successResponseWithoutData,
 } = require('../../../utils/response');
 const {
   MSG_INTERNAL_SERVER_ERROR,
   COMMON_MSG,
-  INACTIVE_USER,
-  MSG_NO_CHANGES_MADE,
 } = require('../../../utils/common/messages');
 const {
-  CATEGORY,
-  ROLE,
   STATUS_INTERNAL_SERVER_ERROR,
-  STATUS_BAD_REQUEST,
-  STATUS_NOT_FOUND,
   STATUS_SUCCESS,
 } = require('../../../utils/common/constants');
-const FileService = require('../../../services/file.service');
 const { verifyJWS, verifyLegacyReceipt } = require('../../../helpers/helper');
-const {
-  PRODUCT_ID,
-  NOTIFICATION_TYPES,
-} = require('../utils/subscription.constant');
+const { NOTIFICATION_TYPES } = require('../utils/subscription.constant');
 const {
   SUBSCRIPTION_SUCCESSFULLY_VALIDATED,
 } = require('../utils/subscription.messages');
-const axios = require('axios');
-// const jwt = require('jsonwebtoken');
+const {
+  sendPaymentFailureEmail,
+  sendCancellationEmail,
+  sendExpirationEmail,
+  sendRenewalStatusEmail,
+  sendRecoveryEmail,
+  sendGracePeriodExpiredEmail,
+  sendSubscriptionStartedEmail,
+  sendPlanChangedEmail,
+} = require('../../../config/email.config');
 const crypto = require('crypto');
 
 // validation receipt
@@ -68,6 +63,7 @@ const validateReceiptHandler = async (req, res) => {
   }
 };
 
+// get subscription status
 const getSubscriptionStatusHandler = async (req, res) => {
   try {
     // const { userId } = req.params;
@@ -108,8 +104,6 @@ const getSubscriptionStatusHandler = async (req, res) => {
   }
 };
 
-// -----------------------------------------------------------------------
-
 // Webhook handler for App Store Server Notifications
 const subscriptionWebhooksHandler = async (req, res) => {
   try {
@@ -130,12 +124,10 @@ const subscriptionWebhooksHandler = async (req, res) => {
       // Process the notification based on its type
       await processNotification(decodedPayload);
 
-      // Always respond with 200 OK to acknowledge receipt
+      // 200 OK to acknowledge receipt
       return res.status(200).json({ received: true });
     } catch (error) {
       console.error('Error processing signedPayload:', error);
-      // Still return 200 to prevent Apple from retrying
-      // Log the error for your analysis
       return res.status(200).json({ received: true, error: error.message });
     }
   } catch (error) {
@@ -147,17 +139,10 @@ const subscriptionWebhooksHandler = async (req, res) => {
     res.status(500).send('Internal error');
   }
 };
-// Function to verify and decode the JWS signature using jws library
-const verifiedJwsCache = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache expiry
+// -----------------------------------------------------------------------
 
 // Then modify your verifyAndDecodeSignature function
 const verifyAndDecodeSignature = async (signedPayload) => {
-  // Check if we've already verified this exact JWS
-  if (verifiedJwsCache.has(signedPayload)) {
-    return verifiedJwsCache.get(signedPayload);
-  }
-
   try {
     // Decode the JWS without verification first
     const decoded = jws.decode(signedPayload);
@@ -193,62 +178,13 @@ const verifyAndDecodeSignature = async (signedPayload) => {
     // Parse the payload
     const payload = JSON.parse(decoded.payload);
 
-    // Cache the result with expiration
-    verifiedJwsCache.set(signedPayload, payload);
-
-    // Set a timeout to remove this item from cache after TTL
-    setTimeout(() => {
-      verifiedJwsCache.delete(signedPayload);
-    }, CACHE_TTL);
-
     return payload;
   } catch (error) {
     console.error('Error verifying and decoding signature:', error);
     throw new Error(`Invalid signature: ${error.message}`);
   }
 };
-// const verifyAndDecodeSignature = async (signedPayload) => {
-//   try {
-//     // Decode the JWS without verification first
-//     const decoded = jws.decode(signedPayload);
 
-//     if (!decoded) {
-//       throw new Error('Invalid JWS format');
-//     }
-
-//     // Extract the header and verify it contains the necessary certificate info
-//     const header = decoded.header;
-
-//     if (!header.x5c || !Array.isArray(header.x5c) || header.x5c.length === 0) {
-//       throw new Error('Missing certificate chain in JWS header');
-//     }
-
-//     // Format the certificates from the header
-//     const certChain = header.x5c.map((cert) => formatPemCertificate(cert));
-
-//     // Verify the certificate chain
-//     const isValidChain = await verifyCertificateChain(certChain);
-
-//     if (!isValidChain) {
-//       throw new Error('Invalid certificate chain');
-//     }
-
-//     // Verify the signature using the leaf certificate (first in the chain)
-//     const verified = jws.verify(signedPayload, header.alg, certChain[0]);
-
-//     if (!verified) {
-//       throw new Error('JWS signature verification failed');
-//     }
-
-//     // Parse the payload
-//     const payload = JSON.parse(decoded.payload);
-//     return payload;
-//   } catch (error) {
-//     console.error('Error verifying and decoding signature:', error);
-//     throw new Error(`Invalid signature: ${error.message}`);
-//   }
-// };
-// Helper to format a base64 certificate as PEM
 const formatPemCertificate = (certBase64) => {
   const pemCert =
     '-----BEGIN CERTIFICATE-----\n' +
@@ -331,14 +267,24 @@ const processNotification = async (decodedPayload) => {
     case NOTIFICATION_TYPES.SUBSCRIBED:
       await handleNewSubscription(data);
       break;
+    case NOTIFICATION_TYPES.DID_CHANGE_RENEWAL_PREF:
+      await handleRenewalPreferenceChange(data);
+      break;
+    case NOTIFICATION_TYPES.DID_CHANGE_RENEWAL_STATUS:
+      await handleRenewalStatusChange(data);
+      break;
+    case NOTIFICATION_TYPES.GRACE_PERIOD_EXPIRED:
+      await handleGracePeriodExpiration(data);
+      break;
+    case NOTIFICATION_TYPES.EXPIRED:
+      await handleExpiration(data);
+      break;
+    //
     case NOTIFICATION_TYPES.DID_RENEW:
       await handleRenewal(data);
       break;
     case NOTIFICATION_TYPES.DID_FAIL_TO_RENEW:
       await handleFailedRenewal(data);
-      break;
-    case NOTIFICATION_TYPES.EXPIRED:
-      await handleExpiration(data);
       break;
     case NOTIFICATION_TYPES.REVOKE:
       await handleRevocation(data);
@@ -346,14 +292,13 @@ const processNotification = async (decodedPayload) => {
     case NOTIFICATION_TYPES.REFUND:
       await handleRefund(data);
       break;
-    // Add other notification types as needed
     default:
       console.log(`Unhandled notification type: ${notificationType}`);
       // Store the notification for analysis
       await storeRawNotification(decodedPayload);
   }
 };
-
+// ----------------- notification handlers -------------------
 // Handler for NEW subscription
 async function handleNewSubscription(data) {
   try {
@@ -409,6 +354,14 @@ async function handleNewSubscription(data) {
       subscription: subscription._id,
     });
 
+    // Send welcome email
+    await sendSubscriptionStartedEmail(user.email, {
+      user,
+      subscription,
+      additionalInfo: {
+        isTrial: offerType === 'TRIAL',
+      },
+    });
     console.log(`Processed subscription ${subscription._id} for ${appAppleId}`);
     return subscription;
   } catch (error) {
@@ -416,116 +369,113 @@ async function handleNewSubscription(data) {
     throw error; // Propagate error for upstream handling
   }
 }
-
-// Handler for subscription RENEWAL
-async function handleRenewal(data) {
+// Handler for subscription preference changes (plan changes)
+async function handleRenewalPreferenceChange(data) {
   try {
     const { signedTransactionInfo } = data;
     const transactionInfo = await verifyAndDecodeSignature(
       signedTransactionInfo
     );
 
-    const { originalTransactionId, transactionId, expiresDate } =
-      transactionInfo;
+    const { originalTransactionId, productId, expiresDate } = transactionInfo;
+    // Find current subscription first to get the old plan
+    const existingSubscription = await Models.Subscription.findOne({
+      originalTransactionId,
+    });
 
-    // Update subscription
+    if (!existingSubscription) {
+      console.error(
+        `No subscription found for plan change: ${originalTransactionId}`
+      );
+      return;
+    }
+    const oldPlan = existingSubscription.productId;
+
+    // Update subscription with new product ID (plan)
     const subscription = await Models.Subscription.findOneAndUpdate(
       { originalTransactionId },
       {
+        productId, // New plan
         expiresDate: new Date(expiresDate),
-        isActive: true,
-        status: 'active',
         lastVerified: new Date(),
       },
       { new: true }
     );
 
-    if (!subscription) {
-      console.error(
-        `No subscription found for renewal: ${originalTransactionId}`
-      );
-      return;
-    }
-
-    // Update user subscription status
-    await Models.User.findByIdAndUpdate(subscription.user, {
-      isSubscribed: true,
-    });
-
-    console.log(`Subscription renewed: ${originalTransactionId}`);
+    console.log(
+      `Subscription plan changed: ${originalTransactionId}, new plan: ${productId}`
+    );
+    return subscription;
   } catch (error) {
-    console.error('Error processing renewal:', error);
+    console.error('Error processing renewal preference change:', error);
     throw error;
   }
 }
 
-// Handler for RENEWAL STATUS CHANGE (auto-renew on/off)
+// Handler for renewal status changes (cancellations)
 async function handleRenewalStatusChange(data) {
   try {
-    const { signedTransactionInfo } = data;
-    const transactionInfo = await verifyAndDecodeSignature(
-      signedTransactionInfo
-    );
+    const { signedRenewalInfo } = data;
+    const renewalInfo = await verifyAndDecodeSignature(signedRenewalInfo);
 
-    const { originalTransactionId, autoRenewStatus } = transactionInfo;
+    const { originalTransactionId, autoRenewStatus, expiresDate } = renewalInfo;
 
-    // Update subscription
-    await Models.Subscription.findOneAndUpdate(
+    // Update subscription with auto-renewal status
+    const subscription = await Models.Subscription.findOneAndUpdate(
       { originalTransactionId },
       {
-        autoRenewStatus: !!autoRenewStatus,
-        'pendingRenewalInfo.autoRenewStatus': !!autoRenewStatus,
+        autoRenewStatus: autoRenewStatus === 1, // Convert to boolean
+        expiresDate: new Date(expiresDate),
         lastVerified: new Date(),
-      }
+        'pendingRenewalInfo.autoRenewStatus': !!autoRenewStatus,
+      },
+      { new: true }
     );
 
     console.log(
-      `Subscription auto-renewal changed to ${autoRenewStatus} for: ${originalTransactionId}`
+      `Subscription auto-renewal status updated: ${originalTransactionId}, status: ${autoRenewStatus}`
     );
+    return subscription;
   } catch (error) {
     console.error('Error processing renewal status change:', error);
     throw error;
   }
 }
 
-// Handler for FAILED RENEWAL
-async function handleFailedRenewal(data) {
+// Handler for expired grace period
+async function handleGracePeriodExpiration(data) {
   try {
     const { signedTransactionInfo } = data;
     const transactionInfo = await verifyAndDecodeSignature(
       signedTransactionInfo
     );
 
-    const { originalTransactionId, expiresDate, gracePeriodExpiresDate } =
-      transactionInfo;
+    const { originalTransactionId } = transactionInfo;
 
-    // Update subscription to grace period
+    // Mark subscription as inactive after grace period
     const subscription = await Models.Subscription.findOneAndUpdate(
       { originalTransactionId },
       {
-        status: 'past_due',
-        expiresDate: new Date(expiresDate),
-        gracePeriodExpiresDate: gracePeriodExpiresDate
-          ? new Date(gracePeriodExpiresDate)
-          : null,
+        isActive: false,
+        status: 'expired',
         lastVerified: new Date(),
       },
       { new: true }
     );
 
-    if (!subscription) {
-      console.error(
-        `No subscription found for failed renewal: ${originalTransactionId}`
-      );
-      return;
+    // Update user subscription status
+    if (subscription) {
+      await Models.User.findByIdAndUpdate(subscription.user, {
+        isSubscribed: false,
+      });
     }
 
-    console.log(`Failed renewal for: ${originalTransactionId}`);
-
-    // Optionally notify user about billing issue
-    // notifyUserAboutBillingIssue(subscription.user);
+    console.log(
+      `Grace period expired for subscription: ${originalTransactionId}`
+    );
+    return subscription;
   } catch (error) {
-    console.error('Error processing failed renewal:', error);
+    console.error('Error processing grace period expiration:', error);
     throw error;
   }
 }
@@ -569,23 +519,25 @@ async function handleExpiration(data) {
     throw error;
   }
 }
-
-// Handler for GRACE PERIOD EXPIRED
-async function handleGracePeriodExpired(data) {
+// ---------------------------------------------------
+// Handler for subscription RENEWAL
+async function handleRenewal(data) {
   try {
     const { signedTransactionInfo } = data;
     const transactionInfo = await verifyAndDecodeSignature(
       signedTransactionInfo
     );
 
-    const { originalTransactionId } = transactionInfo;
+    const { originalTransactionId, transactionId, expiresDate } =
+      transactionInfo;
 
     // Update subscription
     const subscription = await Models.Subscription.findOneAndUpdate(
       { originalTransactionId },
       {
-        status: 'expired',
-        isActive: false,
+        expiresDate: new Date(expiresDate),
+        isActive: true,
+        status: 'active',
         lastVerified: new Date(),
       },
       { new: true }
@@ -593,21 +545,61 @@ async function handleGracePeriodExpired(data) {
 
     if (!subscription) {
       console.error(
-        `No subscription found for grace period expiration: ${originalTransactionId}`
+        `No subscription found for renewal: ${originalTransactionId}`
       );
       return;
     }
 
     // Update user subscription status
     await Models.User.findByIdAndUpdate(subscription.user, {
-      isSubscribed: false,
+      isSubscribed: true,
     });
 
-    console.log(
-      `Grace period expired for subscription: ${originalTransactionId}`
-    );
+    console.log(`Subscription renewed: ${originalTransactionId}`);
   } catch (error) {
-    console.error('Error processing grace period expiration:', error);
+    console.error('Error processing renewal:', error);
+    throw error;
+  }
+}
+
+// Handler for FAILED RENEWAL
+async function handleFailedRenewal(data) {
+  try {
+    const { signedTransactionInfo } = data;
+    const transactionInfo = await verifyAndDecodeSignature(
+      signedTransactionInfo
+    );
+
+    const { originalTransactionId, expiresDate, gracePeriodExpiresDate } =
+      transactionInfo;
+
+    // Update subscription to grace period
+    const subscription = await Models.Subscription.findOneAndUpdate(
+      { originalTransactionId },
+      {
+        status: 'past_due',
+        expiresDate: new Date(expiresDate),
+        gracePeriodExpiresDate: gracePeriodExpiresDate
+          ? new Date(gracePeriodExpiresDate)
+          : null,
+        lastVerified: new Date(),
+      },
+      { new: true }
+    );
+
+    if (!subscription) {
+      console.error(
+        `No subscription found for failed renewal: ${originalTransactionId}`
+      );
+      return;
+    }
+
+    console.log(`Failed renewal for: ${originalTransactionId}`);
+
+    // Optionally notify user about billing issue
+    // notifyUserAboutBillingIssue(subscription.user);
+  } catch (error) {
+    console.error('Error processing failed renewal:', error);
     throw error;
   }
 }
@@ -732,5 +724,4 @@ module.exports = {
   validateReceiptHandler,
   subscriptionWebhooksHandler,
   getSubscriptionStatusHandler,
-  // appleServerNotificationHandler,
 };
