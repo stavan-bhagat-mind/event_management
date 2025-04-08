@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 require('dotenv').config();
 const Models = require('../models/index');
+const FileService = require('../services/file.service');
 
 const generateOTP = (length = 6) => {
   // Generate a random  OTP
@@ -32,6 +33,15 @@ const getFullImageUrl = (objectPath) => {
   const baseUrl = process.env.MINIO_PUBLIC_URL;
   const bucketName = process.env.MINIO_BUCKET;
   return `${baseUrl}/${bucketName}/${objectPath}`;
+};
+
+// Helper function to transform event data with full image URLs (for array of objects)
+const transformEventWithUrls = (event) => {
+  const eventObj = event.toObject();
+  return {
+    ...eventObj,
+    images: eventObj.images.map((path) => FileService.getFullUrl(path)),
+  };
 };
 
 // Function to generate a secure verification token
@@ -79,92 +89,12 @@ const verifyReceipt = async (receiptData, isSandbox = true) => {
 };
 
 const jwt = require('jsonwebtoken');
-// const axios = require('axios');
-// const crypto = require('crypto-js');
 
 // Configuration
 const APPLE_SHARED_SECRET = process.env.APPLE_SHARED_SECRET;
 const BUNDLE_ID = process.env.APPLE_BUNDLE_ID;
 
-// Legacy Receipt Validation
-// async function verifyLegacyReceipt(receiptData, isSandbox = false, userId) {
-//   const verificationURL = isSandbox
-//     ? 'https://sandbox.itunes.apple.com/verifyReceipt'
-//     : 'https://buy.itunes.apple.com/verifyReceipt';
-
-//   try {
-//     const response = await axios.post(verificationURL, {
-//       'receipt-data': receiptData,
-//       password: process.env.APPLE_SHARED_SECRET,
-//       'exclude-old-transactions': false,
-//     });
-
-//     // Handle sandbox/production mismatch
-//     if (response.data.status === 21007) {
-//       return await verifyLegacyReceipt(receiptData, true, userId);
-//     }
-//     if (response.data.status === 21008) {
-//       return await verifyLegacyReceipt(receiptData, false, userId);
-//     }
-//     if (response.data.status !== 0) {
-//       throw new Error(
-//         `Receipt validation failed with status: ${response.data.status}`
-//       );
-//     }
-
-//     // Process valid receipt
-//     const receipt = response.data;
-//     console.log('receipt', receipt);
-//     const latestReceiptInfo = receipt.latest_receipt_info[0];
-//     const pendingRenewalInfo = receipt.pending_renewal_info?.[0] || {};
-
-//     // 1. Find or create subscription
-//     const subscription = await Models.Subscription.findOneAndUpdate(
-//       { originalTransactionId: latestReceiptInfo.original_transaction_id },
-//       {
-//         user: userId,
-//         productId: latestReceiptInfo.product_id,
-//         purchaseDate: new Date(parseInt(latestReceiptInfo.purchase_date_ms)),
-//         expiresDate: new Date(parseInt(latestReceiptInfo.expires_date_ms)),
-//         isTrial: latestReceiptInfo.is_trial_period === 'true',
-//         isActive:
-//           new Date(parseInt(latestReceiptInfo.expires_date_ms)) > new Date(),
-//         autoRenewStatus: pendingRenewalInfo.auto_renew_status === '1',
-//         environment: isSandbox ? 'Sandbox' : 'Production',
-//         latestReceipt: receipt.latest_receipt,
-//         pendingRenewalInfo: {
-//           autoRenewProductId: pendingRenewalInfo.auto_renew_product_id,
-//           autoRenewStatus: pendingRenewalInfo.auto_renew_status === '1',
-//           expirationIntent: pendingRenewalInfo.expiration_intent,
-//         },
-//       },
-//       { upsert: true, new: true }
-//     );
-
-//     // 2. Update user's subscription status
-//     await Models.User.findByIdAndUpdate(userId, {
-//       isSubscribed: subscription.isActive,
-//       subscription: subscription._id,
-//     });
-
-//     // 3. Handle trial period events
-//     if (subscription.isTrial) {
-//       await Event.updateMany({ creator: userId }, { createdDuringTrial: true });
-//     }
-
-//     return {
-//       status: 'success',
-//       subscription,
-//       latestReceipt: receipt.latest_receipt,
-//     };
-//   } catch (error) {
-//     console.error('Verification error', error);
-//     throw error;
-//   }
-// }
-
 async function verifyLegacyReceipt(receiptData, isSandbox = false, userId) {
-  console.log('userID', userId);
   const verificationURL = isSandbox
     ? 'https://sandbox.itunes.apple.com/verifyReceipt'
     : 'https://buy.itunes.apple.com/verifyReceipt';
@@ -226,7 +156,6 @@ async function verifyLegacyReceipt(receiptData, isSandbox = false, userId) {
     }
 
     // 1. Find or create subscription
-    console.log('u2', userId);
     const subscription = await Models.Subscription.findOneAndUpdate(
       { originalTransactionId: latestReceiptInfo.original_transaction_id },
       {
@@ -334,4 +263,5 @@ module.exports = {
   verifyReceipt,
   verifyLegacyReceipt,
   verifyJWS,
+  transformEventWithUrls,
 };

@@ -14,8 +14,6 @@ const {
 const authentication = require('../middlewares/authentication.middleware');
 const checkSubscription = require('../middlewares/checkSubscription.middleware');
 const { multipleUpload } = require('../config/multer.config');
-const { generatePresignedUrl } = require('../services/file.service');
-const FileService = require('../services/file.service');
 
 eventRouter.post(
   '/create',

@@ -2,7 +2,6 @@ const Models = require('../../../models/index');
 const mongoose = require('mongoose');
 const {
   successResponseData,
-  errorResponseData,
   errorResponseWithoutData,
   validationErrorResponseData,
   successResponseWithoutData,
@@ -16,7 +15,6 @@ const {
   MSG_INTERNAL_SERVER_ERROR,
   COMMON_MSG,
   INACTIVE_USER,
-  MSG_NO_CHANGES_MADE,
   MSG_MODIFICATION_RESTRICTED,
 } = require('../../../utils/common/messages');
 const { ROLE } = require('../../../utils/common/constants');
@@ -28,17 +26,13 @@ const {
   STATUS_SUCCESS,
   STATUS_FORBIDDEN,
   STATUS_CREATED,
-  CODE,
 } = require('../../../utils/common/constants');
-
-// Helper function to transform event data with full image URLs
-const transformEventWithUrls = (event) => {
-  const eventObj = event.toObject();
-  return {
-    ...eventObj,
-    images: eventObj.images.map((path) => FileService.getFullUrl(path)),
-  };
-};
+const {
+  EVENT,
+  SAVED_EVENT,
+  TRIAL_EVENT,
+} = require('./../utils/events.constant');
+const { transformEventWithUrls } = require('../../../helpers/helper');
 
 // Create Event
 async function createEventHandler(req, res) {
@@ -48,7 +42,7 @@ async function createEventHandler(req, res) {
       return validationErrorResponseData(res, value.message);
     }
 
-    // ObjectId that we'll use for both file storage and event creation
+    // ObjectId - use for both file storage and event creation
     const eventId = new mongoose.Types.ObjectId();
 
     const imagePaths = [];
@@ -94,8 +88,8 @@ async function createEventHandler(req, res) {
     };
     // Customize success message based on event creation context
     const successMessage = isTrialEvent
-      ? COMMON_MSG.CREATED_SUCCESS.replace('##', 'Trial Event')
-      : COMMON_MSG.CREATED_SUCCESS.replace('##', 'Event');
+      ? COMMON_MSG.CREATED_SUCCESS.replace('##', TRIAL_EVENT)
+      : COMMON_MSG.CREATED_SUCCESS.replace('##', EVENT);
 
     return successResponseData(
       res,
@@ -130,7 +124,7 @@ async function updateEventHandler(req, res) {
       return errorResponseWithoutData(
         res,
         STATUS_NOT_FOUND,
-        COMMON_MSG.NOT_FOUND.replace('##', 'Event')
+        COMMON_MSG.NOT_FOUND.replace('##', EVENT)
       );
     }
 
@@ -215,7 +209,7 @@ async function updateEventHandler(req, res) {
       res,
       responseData,
       STATUS_SUCCESS,
-      COMMON_MSG.UPDATED_SUCCESS.replace('##', 'Event')
+      COMMON_MSG.UPDATED_SUCCESS.replace('##', EVENT)
     );
   } catch (error) {
     console.error(`updateEventHandler error: ${error.message}`);
@@ -230,6 +224,10 @@ async function updateEventHandler(req, res) {
 // Delete Event Handler
 async function deleteEventHandler(req, res) {
   try {
+    const { success, value } = validateEventData(req.params.id, res);
+    if (!success) {
+      return validationErrorResponseData(res, value.message);
+    }
     const event = await Models.Event.findOne({
       _id: req.params.id,
       creator: req.userId,
@@ -239,7 +237,7 @@ async function deleteEventHandler(req, res) {
       return errorResponseWithoutData(
         res,
         STATUS_NOT_FOUND,
-        COMMON_MSG.NOT_FOUND.replace('##', 'Event')
+        COMMON_MSG.NOT_FOUND.replace('##', EVENT)
       );
     }
 
@@ -278,7 +276,7 @@ async function deleteEventHandler(req, res) {
     return successResponseWithoutData(
       res,
       STATUS_SUCCESS,
-      COMMON_MSG.DELETED_SUCCESS.replace('##', 'Event')
+      COMMON_MSG.DELETED_SUCCESS.replace('##', EVENT)
     );
   } catch (error) {
     console.error(`deleteEventHandler error: ${error.message}`);
@@ -311,7 +309,7 @@ async function getUserCreatedEventsHandler(req, res) {
       res,
       transformedEvents,
       STATUS_SUCCESS,
-      COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Events'),
+      COMMON_MSG.FETCHED_SUCCESS.replace('##', EVENT),
       { total: events.length }
     );
   } catch (error) {
@@ -337,7 +335,7 @@ async function getEventDetailsHandler(req, res) {
       res,
       transformedEvent,
       STATUS_SUCCESS,
-      COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Events')
+      COMMON_MSG.FETCHED_SUCCESS.replace('##', EVENT)
     );
   } catch (error) {
     console.error(`getEventDetailsHandler error: ${error.message}`);
@@ -367,7 +365,7 @@ async function getPublishedEventsHandler(req, res) {
       res,
       transformedEvents,
       STATUS_SUCCESS,
-      COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Events'),
+      COMMON_MSG.FETCHED_SUCCESS.replace('##', EVENT),
       { total: events.length }
     );
   } catch (error) {
@@ -396,7 +394,7 @@ async function getAllPublishedEventsHandler(req, res) {
       res,
       transformedEvents,
       STATUS_SUCCESS,
-      COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Events'),
+      COMMON_MSG.FETCHED_SUCCESS.replace('##', EVENT),
       { total: events.length }
     );
   } catch (error) {
@@ -422,7 +420,7 @@ async function saveEventHandler(req, res) {
       return errorResponseWithoutData(
         res,
         STATUS_NOT_FOUND,
-        COMMON_MSG.NOT_FOUND.replace('##', 'Event')
+        COMMON_MSG.NOT_FOUND.replace('##', EVENT)
       );
     }
     const savedEvent = await Models.SavedEvent.create({
@@ -434,14 +432,14 @@ async function saveEventHandler(req, res) {
       res,
       savedEvent,
       STATUS_SUCCESS,
-      COMMON_MSG.ADDED_SUCCESS.replace('##', 'Event')
+      COMMON_MSG.ADDED_SUCCESS.replace('##', EVENT)
     );
   } catch (error) {
     if (error.code === 11000) {
       return errorResponseWithoutData(
         res,
         STATUS_BAD_REQUEST,
-        COMMON_MSG.ALREADY_EXISTS.replace('##', 'Event')
+        COMMON_MSG.ALREADY_EXISTS.replace('##', EVENT)
       );
     }
     console.error(`saveEventHandler error: ${error.message}`);
@@ -464,7 +462,7 @@ async function removeSavedEventHandler(req, res) {
       return errorResponseWithoutData(
         res,
         STATUS_NOT_FOUND,
-        COMMON_MSG.NOT_FOUND.replace('##', 'Saved Event')
+        COMMON_MSG.NOT_FOUND.replace('##', SAVED_EVENT)
       );
     }
 
@@ -476,7 +474,7 @@ async function removeSavedEventHandler(req, res) {
     return successResponseWithoutData(
       res,
       STATUS_SUCCESS,
-      COMMON_MSG.REMOVED_SUCCESS.replace('##', 'Event')
+      COMMON_MSG.REMOVED_SUCCESS.replace('##', EVENT)
     );
   } catch (error) {
     console.error(`removeSavedEventHandler error: ${error.message}`);
@@ -503,14 +501,14 @@ async function getSavedEventsHandler(req, res) {
       return errorResponseWithoutData(
         res,
         STATUS_NOT_FOUND,
-        COMMON_MSG.NOT_FOUND.replace('##', 'savedEvent')
+        COMMON_MSG.NOT_FOUND.replace('##', SAVED_EVENT)
       );
     }
     return successResponseData(
       res,
       savedEvent,
       STATUS_SUCCESS,
-      COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Events'),
+      COMMON_MSG.FETCHED_SUCCESS.replace('##', EVENT),
       { total: savedEvent.length }
     );
   } catch (error) {

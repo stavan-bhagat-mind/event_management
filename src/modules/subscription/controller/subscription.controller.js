@@ -114,10 +114,6 @@ const getSubscriptionStatusHandler = async (req, res) => {
 const subscriptionWebhooksHandler = async (req, res) => {
   try {
     console.log('Received App Store notification');
-    console.log('req', req);
-    console.log('req.headers', req.headers);
-    console.log('req.body', req.body);
-
     // Get the signed payload (JWS) from the request body
     const signedPayload = req.body.signedPayload;
 
@@ -152,12 +148,19 @@ const subscriptionWebhooksHandler = async (req, res) => {
   }
 };
 // Function to verify and decode the JWS signature using jws library
+const verifiedJwsCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache expiry
+
+// Then modify your verifyAndDecodeSignature function
 const verifyAndDecodeSignature = async (signedPayload) => {
+  // Check if we've already verified this exact JWS
+  if (verifiedJwsCache.has(signedPayload)) {
+    return verifiedJwsCache.get(signedPayload);
+  }
+
   try {
     // Decode the JWS without verification first
     const decoded = jws.decode(signedPayload);
-
-    console.log('Decoded JWS:', decoded);
 
     if (!decoded) {
       throw new Error('Invalid JWS format');
@@ -165,17 +168,23 @@ const verifyAndDecodeSignature = async (signedPayload) => {
 
     // Extract the header and verify it contains the necessary certificate info
     const header = decoded.header;
-    console.log('Header:', header);
+
     if (!header.x5c || !Array.isArray(header.x5c) || header.x5c.length === 0) {
       throw new Error('Missing certificate chain in JWS header');
     }
 
-    // Get the certificate from the header
-    const certPem = formatPemCertificate(header.x5c[0]);
-    console.log('Certificate PEM:', certPem);
-    // In production, verify the cert chain back to Apple's root CA
-    // For now, just verify the signature using the provided cert
-    const verified = jws.verify(signedPayload, header.alg, certPem);
+    // Format the certificates from the header
+    const certChain = header.x5c.map((cert) => formatPemCertificate(cert));
+
+    // Verify the certificate chain
+    const isValidChain = await verifyCertificateChain(certChain);
+
+    if (!isValidChain) {
+      throw new Error('Invalid certificate chain');
+    }
+
+    // Verify the signature using the leaf certificate (first in the chain)
+    const verified = jws.verify(signedPayload, header.alg, certChain[0]);
 
     if (!verified) {
       throw new Error('JWS signature verification failed');
@@ -183,14 +192,62 @@ const verifyAndDecodeSignature = async (signedPayload) => {
 
     // Parse the payload
     const payload = JSON.parse(decoded.payload);
-    console.log('Payload:', payload);
+
+    // Cache the result with expiration
+    verifiedJwsCache.set(signedPayload, payload);
+
+    // Set a timeout to remove this item from cache after TTL
+    setTimeout(() => {
+      verifiedJwsCache.delete(signedPayload);
+    }, CACHE_TTL);
+
     return payload;
   } catch (error) {
     console.error('Error verifying and decoding signature:', error);
     throw new Error(`Invalid signature: ${error.message}`);
   }
 };
+// const verifyAndDecodeSignature = async (signedPayload) => {
+//   try {
+//     // Decode the JWS without verification first
+//     const decoded = jws.decode(signedPayload);
 
+//     if (!decoded) {
+//       throw new Error('Invalid JWS format');
+//     }
+
+//     // Extract the header and verify it contains the necessary certificate info
+//     const header = decoded.header;
+
+//     if (!header.x5c || !Array.isArray(header.x5c) || header.x5c.length === 0) {
+//       throw new Error('Missing certificate chain in JWS header');
+//     }
+
+//     // Format the certificates from the header
+//     const certChain = header.x5c.map((cert) => formatPemCertificate(cert));
+
+//     // Verify the certificate chain
+//     const isValidChain = await verifyCertificateChain(certChain);
+
+//     if (!isValidChain) {
+//       throw new Error('Invalid certificate chain');
+//     }
+
+//     // Verify the signature using the leaf certificate (first in the chain)
+//     const verified = jws.verify(signedPayload, header.alg, certChain[0]);
+
+//     if (!verified) {
+//       throw new Error('JWS signature verification failed');
+//     }
+
+//     // Parse the payload
+//     const payload = JSON.parse(decoded.payload);
+//     return payload;
+//   } catch (error) {
+//     console.error('Error verifying and decoding signature:', error);
+//     throw new Error(`Invalid signature: ${error.message}`);
+//   }
+// };
 // Helper to format a base64 certificate as PEM
 const formatPemCertificate = (certBase64) => {
   const pemCert =
@@ -199,6 +256,66 @@ const formatPemCertificate = (certBase64) => {
     '\n-----END CERTIFICATE-----';
   return pemCert;
 };
+// Helper to load Apple's root CA certificates
+const verifyCertificateChain = async (certChain) => {
+  // 1. Load Apple's root CA certificates
+  const appleRootCAs = loadAppleRootCertificates();
+
+  // 2. Verify certificate chain integrity
+  // Each certificate should be signed by the next one in the chain
+  for (let i = 0; i < certChain.length - 1; i++) {
+    const currentCert = certChain[i];
+    const issuerCert = certChain[i + 1];
+
+    if (!verifyCertificateSignature(currentCert, issuerCert)) {
+      return false;
+    }
+  }
+
+  // 3. Verify the last certificate in the chain against Apple's root CAs
+  const lastCert = certChain[certChain.length - 1];
+  const isSignedByAppleRootCA = appleRootCAs.some((rootCA) =>
+    verifyCertificateSignature(lastCert, rootCA)
+  );
+
+  if (!isSignedByAppleRootCA) {
+    return false;
+  }
+
+  // 4. Check for certificate revocation (using CRL or OCSP)
+  for (const cert of certChain) {
+    if (await isCertificateRevoked(cert)) {
+      return false;
+    }
+  }
+
+  // 5. Verify certificate validity periods
+  for (const cert of certChain) {
+    if (!isCertificateInValidityPeriod(cert)) {
+      return false;
+    }
+  }
+
+  return true;
+};
+// to verify that a certificate was legitimately signed by its issuer.
+function verifyCertificateSignature(certificate, issuerCertificate) {
+  try {
+    // Extract the public key from the issuer certificate
+    const issuerPublicKey = crypto.createPublicKey(issuerCertificate);
+
+    // Create a certificate object from the certificate being verified
+    const cert = new crypto.X509Certificate(certificate);
+
+    // Verify the signature using the issuer's public key
+    const isValid = cert.verify(issuerPublicKey);
+
+    return isValid;
+  } catch (error) {
+    console.error('Certificate signature verification error:', error);
+    return false;
+  }
+}
 
 // Function to process notifications based on type
 const processNotification = async (decodedPayload) => {
@@ -585,7 +702,7 @@ async function storeRawNotification(notification) {
 // ======================
 // Email Notification Helpers (Example Implementations)
 // ======================
-  
+
 const sendPaymentFailureEmail = async (email, data) => {
   // Implement your email service integration
   console.log(`[Email] Payment failure notice sent to ${email}`, data);

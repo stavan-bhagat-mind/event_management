@@ -39,7 +39,7 @@ app.use((req, res, next) => {
 app.use('/event-management', indexRoutes);
 
 app.get('/home', (req, res, next) => {
-  res.send('This is the homepage request');
+  res.send('This is the homepage for testing');
 });
 // 404 Handler
 app.use('*', (req, res) => {
@@ -48,5 +48,5 @@ app.use('*', (req, res) => {
 
 // Start server
 app.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}/event-management`);
+  console.log(`Server running on ${port}`);
 });

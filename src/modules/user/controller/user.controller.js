@@ -16,13 +16,12 @@ const {
   validationErrorResponseData,
   successResponseWithoutData,
 } = require('../../../utils/response');
-const { USER } = require('../utils/user.constants');
+const { USER, OLD_PASSWORD, PASSWORD } = require('../utils/user.constants');
 const { USER_MESSAGE } = require('../utils/user.messages');
 require('dotenv').config();
 const {
   MSG_INTERNAL_SERVER_ERROR,
   COMMON_MSG,
-  MSG_BAD_REQUEST,
   MSG_LINK_EXPIRE,
   PASSWORD_RESET_SUCCESS,
   MSG_ACCESS_TOKEN_REFRESHED,
@@ -92,7 +91,7 @@ async function registerHandler(req, res) {
       await sendVerificationEmail(
         value.email,
         emailVerificationToken,
-        'reactivate'
+        'reactivation'
       );
 
       return successResponseData(
@@ -108,7 +107,7 @@ async function registerHandler(req, res) {
           createdAt: existingUser.createdAt,
         },
         STATUS_CREATED,
-        'We have found previous association with this email. please verify your email for reactivation and recovery of your account.'
+        USER_MESSAGE.REACTIVATION_VERIFICATION_MESSAGE
       );
     }
 
@@ -119,7 +118,7 @@ async function registerHandler(req, res) {
       process.env.VERIFY_SECRET,
       { expiresIn: process.env.VERIFY_EXPIRY_TIME }
     );
-    // Create user
+    // Create new user
     const user = await Models.User.create({
       firstName: value.firstName,
       lastName: value.lastName,
@@ -130,7 +129,7 @@ async function registerHandler(req, res) {
     });
 
     await sendVerificationEmail(user.email, emailVerificationToken);
-    // Remove sensitive data from response
+    // response
     const userResponse = {
       id: user._id,
       firstName: user.firstName,
@@ -213,7 +212,7 @@ async function loginHandler(req, res) {
         refreshToken,
       },
       STATUS_SUCCESS,
-      'User logged in successfully'
+      USER_MESSAGE.USER_LOGGED_IN_SUCCESS
     );
   } catch (error) {
     console.error(`Login error: ${error.message}`);
@@ -293,18 +292,6 @@ async function getUserDataHandler(req, res) {
 
     return successResponseData(
       res,
-      // {
-      //   id: user._id,
-      //   firstName: user.firstName,
-      //   lastName: user.lastName,
-      //   email: user.email,
-      //   contactNumber: user.contactNumber,
-      //   userType: user.userType,
-      //   password: user.password,
-      //   profilePictureUrl: user.profilePictureUrl
-      //     ? FileService.getFullUrl(user.profilePictureUrl)
-      //     : null,
-      // },
       user,
       STATUS_SUCCESS,
       COMMON_MSG.FETCHED_SUCCESS.replace('##', USER)
@@ -349,15 +336,13 @@ async function userVerificationHandler(req, res) {
       appName: APP.NAME,
       alreadyVerified: false,
     });
-    // return successResponseWithoutData(
-    //   res,
-    //   STATUS_SUCCESS,
-    //   COMMON_MSG.VERIFIED_SUCCESS.replace('##', 'email')
-    // );
   } catch (error) {
     console.error('Verification error:', error);
     if (error.name === 'TokenExpiredError') {
-      return errorResponseWithoutData(res, STATUS_BAD_REQUEST, MSG_LINK_EXPIRE);
+      return res.render('linkExpire.template.ejs', {
+        appName: APP.NAME,
+        alreadyVerified: false,
+      });
     }
     return errorResponseWithoutData(
       res,
@@ -501,7 +486,7 @@ async function updatePasswordHandler(req, res) {
       return errorResponseWithoutData(
         res,
         STATUS_BAD_REQUEST,
-        COMMON_MSG.INVALID.replace('##', 'Old Password')
+        COMMON_MSG.INVALID.replace('##', OLD_PASSWORD)
       );
     }
     const hashedNewPassword = await bcrypt.hash(value.newPassword, 10);
@@ -509,12 +494,11 @@ async function updatePasswordHandler(req, res) {
     await Models.User.findByIdAndUpdate(userId, {
       password: hashedNewPassword,
     });
-    console.log('password updated');
 
     return successResponseWithoutData(
       res,
       STATUS_SUCCESS,
-      COMMON_MSG.UPDATED_SUCCESS.replace('##', 'Password')
+      COMMON_MSG.UPDATED_SUCCESS.replace('##', PASSWORD)
     );
   } catch (error) {
     console.error('updatePasswordHandler :', error);
@@ -643,7 +627,7 @@ async function deleteUser(req, res) {
       isEmailVerified: false,
     });
 
-    // Only delete the profile picture if needed
+    // delete the profile picture
     // if (user.profilePictureUrl) {
     //   try {
     //     await FileService.deleteFile(user.profilePictureUrl);

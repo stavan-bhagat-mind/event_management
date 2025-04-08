@@ -11,6 +11,8 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS,
   },
 });
+const logoUrl =
+  'https://i.ibb.co/0pgvhwhZ/rn-image-picker-lib-temp-22395d66-3916-47ad-8c4c-5e04f38bc9c5.png';
 
 const sendVerificationEmail = async (
   email,
@@ -18,14 +20,12 @@ const sendVerificationEmail = async (
   emailType = 'verification'
 ) => {
   try {
-    const logoUrl =
-      'https://i.ibb.co/B29jMVLt/background-replacer-result-2.png';
     const imageUrl =
-      'https://cdn.pixabay.com/photo/2017/03/17/06/47/email-2151046_640.png';
+      'https://i.ibb.co/8L3gfy4F/email-2151046-640.webp';
 
     let verificationUrl, subject;
 
-    if (emailType === 'reactivate') {
+    if (emailType === 'reactivation') {
       verificationUrl = `${process.env.BASEURL}/event-management/user/verify/${token}`;
       subject = EMAIL.SUBJECTS.REACTIVATE_ACCOUNT || 'Reactivate Your Account';
     } else {
@@ -66,16 +66,8 @@ const sendVerificationEmail = async (
 const sendResetPasswordEmail = async (email, resetToken, userName) => {
   try {
     const appName = APP.NAME;
-    // const imageUrl = 'https://cdn-icons-png.flaticon.com/512/6434/6434880.png';
-    // red lock
-    // const imageUrl = 'https://cdn-icons-png.flaticon.com/512/1592/1592485.png';
     const imageUrl =
-      'https://cdn-icons-png.flaticon.com/512/14440/14440335.png';
-    // const logoUrl = 'https://i.ibb.co/jkPfpH0m/eventify-icon-filled-256.png';
-    // red logo
-    const logoUrl =
-      'https://i.ibb.co/B29jMVLt/background-replacer-result-2.png';
-
+      'https://i.ibb.co/bjn5nn6K/lock.png';
     // Render the EJS template
     const emailTemplatePath = path.resolve(
       __dirname,
@@ -87,7 +79,7 @@ const sendResetPasswordEmail = async (email, resetToken, userName) => {
       resetToken,
       logoUrl,
       userName,
-      supportUrl: 'www.www.onion',
+      supportUrl: 'https://support.google.com',
     });
 
     // Send the email

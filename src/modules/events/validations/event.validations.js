@@ -118,6 +118,18 @@ const validateEventsData = (data, res) => {
     value: error ? error : value,
   };
 };
+const validateId = (id) => {
+  const validationSchema = Joi.object({
+    id: Joi.string().required().messages({
+      'any.required': 'Event ID is required',
+    }),
+  });
+  const { error, value } = validationSchema.validate(id);
+  return {
+    success: error ? false : true,
+    value: error ? error : value,
+  };
+};
 module.exports = {
   validateEventData,
   validateEventsData,

@@ -3,12 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title><%= alreadyVerified ? 'Already Verified' : 'Email Verification Successful' %></title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <title>Link Expired</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap"
+      rel="stylesheet"
+    />
     <style>
       :root {
         --primary-red: #e53935;
-        --primary-green: #43a047;
         --dark-red: #c62828;
         --light-red: #ffebee;
         --white: #ffffff;
@@ -43,7 +45,7 @@
       }
 
       .header {
-        background-color: var(--primary-red);
+        background-color: var(--dark-red);
         color: var(--white);
         padding: 30px 20px;
         position: relative;
@@ -55,39 +57,34 @@
         margin-bottom: 8px;
       }
 
-      .header p {
-        font-size: 16px;
-        opacity: 0.9;
-      }
-
-      .success-icon-wrapper {
+      .expired-icon-wrapper {
         position: relative;
         height: 30px;
       }
 
-      .success-icon {
-  width: 70px;
-  height: 70px;
-  position: absolute;
-  top: -35px;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: var(--primary-green);
-  border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  /* border: 2px solid #4CAF50;  */
-}
+      .expired-icon {
+        width: 70px;
+        height: 70px;
+        position: absolute;
+        top: -35px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: var(--primary-red);
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
 
-.success-icon svg {
-  width: 40px;
-  height: 40px;
-  fill: #4CAF50; 
-  stroke: #4CAF50;
-  stroke-width: 0.5;
-}
+      .expired-icon svg {
+        width: 40px;
+        height: 40px;
+        fill: #ffffff;
+        stroke: #ffffff;
+        stroke-width: 0.5;
+      }
+
       .content {
         padding: 20px 30px 40px;
       }
@@ -101,7 +98,7 @@
       .message h2 {
         font-size: 22px;
         margin-bottom: 15px;
-        color: #333;
+        color: var(--dark-red);
       }
 
       .app-notice {
@@ -113,6 +110,22 @@
         font-size: 15px;
       }
 
+      .request-button {
+        display: inline-block;
+        background-color: var(--primary-red);
+        color: var(--white);
+        padding: 12px 24px;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: 500;
+        margin-top: 15px;
+        transition: background-color 0.2s;
+      }
+
+      .request-button:hover {
+        background-color: var(--dark-red);
+      }
+
       .footer {
         margin-top: 30px;
         color: var(--dark-gray);
@@ -120,7 +133,7 @@
       }
 
       .footer a {
-        color: var(--primary-green);
+        color: var(--primary-red);
         text-decoration: none;
       }
 
@@ -146,33 +159,35 @@
   <body>
     <div class="container">
       <div class="header">
-        <h1><%= alreadyVerified ? 'Already Verified' : 'Email Verification' %></h1>
+        <h1>Link Expired</h1>
       </div>
 
-      <div class="success-icon-wrapper">
-        <div class="success-icon">
+      <div class="expired-icon-wrapper">
+        <div class="expired-icon">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <path d="M0 0h24v24H0z" fill="none" />
-            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" stroke="#FFFFFF" stroke-width="1" fill="#FFFFFF" />
+            <path
+              d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.59-13L12 10.59 8.41 7 7 8.41 10.59 12 7 15.59 8.41 17 12 13.41 15.59 17 17 15.59 13.41 12 17 8.41z"
+            />
           </svg>
         </div>
       </div>
 
       <div class="content">
         <div class="message">
-          <h2><%= alreadyVerified ? 'Already Verified' : 'Verification Successful' %></h2>
-          <p>
-            <% if (alreadyVerified) { %>
-              Dear <span style="font-weight:500;color: #be2828;"><%= userName %></span>, your email <%= email %> has already been verified.
-            <% } else { %>
-              Dear <span style="font-weight: 400; color: #be2828;"><%= userName %></span>, thank you for verifying your account. Your email <%= email %> has been successfully verified.
-            <% } %>
+          <h2>This Link Has Expired</h2>
+          <p>The link you are trying to access has expired.</p>
+          <p style="margin-top: 10px">
+            For security reasons, links are valid for a limited time only.
+            Please request a new link to continue.
           </p>
         </div>
 
         <div class="app-notice">
-          Please return to the <%= appName %> app and log in with your credentials.
+          Please return to the <%=appName%> app and request a new link.
         </div>
+        <!-- 
+        <a href="#" class="request-button">Request New Link</a> -->
 
         <div class="footer">
           <p>
@@ -183,4 +198,4 @@
       </div>
     </div>
   </body>
-  </html>
+</html>
