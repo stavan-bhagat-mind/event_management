@@ -120,7 +120,6 @@ const subscriptionWebhooksHandler = async (req, res) => {
     try {
       // Verify and decode the JWS
       const decodedPayload = await verifyAndDecodeSignature(signedPayload);
-      console.log('Decoded payload:', decodedPayload);
 
       // Process the notification based on its type
       await processNotification(decodedPayload);
@@ -178,7 +177,7 @@ const verifyAndDecodeSignature = async (signedPayload) => {
 
     // Parse the payload
     const payload = JSON.parse(decoded.payload);
-
+    console.log('inside payload decode', payload);
     return payload;
   } catch (error) {
     console.error('Error verifying and decoding signature:', error);
@@ -265,54 +264,19 @@ async function handleNewSubscription(data) {
     const transactionInfo = await verifyAndDecodeSignature(
       signedTransactionInfo
     );
-    const {
-      originalTransactionId,
-      productId,
-      purchaseDate,
-      expiresDate,
-      offerType,
-    } = transactionInfo;
-
-    // Find user by Apple ID (email)
-    const user = await Models.User.findOne({
-      email: appAppleId.toLowerCase().trim(),
-    });
-
-    if (!user) {
-      throw new Error(`User not found with email: ${appAppleId}`);
-    }
+    const { originalTransactionId, offerType } = transactionInfo;
 
     // Create/update subscription
-    const subscription = await Models.Subscription.findOneAndUpdate(
-      { originalTransactionId },
-      {
-        user: user._id,
-        originalTransactionId,
-        productId,
-        purchaseDate: new Date(purchaseDate),
-        expiresDate: new Date(expiresDate),
-        isActive: true,
-        autoRenewStatus: true,
-        environment,
-        status: 'active',
-        isTrial: offerType === 'TRIAL',
-      },
-      {
-        upsert: true,
-        new: true,
-        setDefaultsOnInsert: true,
-      }
-    );
+    const subscription = await Models.Subscription.findOne({
+      originalTransactionId,
+    }).select('_id productId status expiresDate user');
 
-    // Update user's subscription status
-    await Models.User.findByIdAndUpdate(user._id, {
-      isSubscribed: true,
-      subscription: subscription._id,
-    });
+    const user = await Models.User.findById(subscription.user).select(
+      '_id firstName lastName email'
+    );
 
     // Send welcome email
     await sendSubscriptionStartedEmail(user.email, {
-      user,
       subscription,
       additionalInfo: {
         isTrial: offerType === 'TRIAL',
@@ -357,7 +321,12 @@ async function handleRenewalPreferenceChange(data) {
         lastVerified: new Date(),
       },
       { new: true }
+    ).select('_id productId status expiresDate user');
+
+    const user = await Models.User.findById(subscription.user).select(
+      '_id firstName lastName email'
     );
+
     await sendPlanChangedEmail(user.email, {
       user,
       subscription,
@@ -384,19 +353,29 @@ async function handleRenewalStatusChange(data) {
     const { signedRenewalInfo } = data;
     const renewalInfo = await verifyAndDecodeSignature(signedRenewalInfo);
 
-    const { originalTransactionId, autoRenewStatus, expiresDate } = renewalInfo;
+    const { originalTransactionId, autoRenewStatus, renewalDate } = renewalInfo;
+    console.log('expiresDate', new Date(renewalDate));
+    const updateFields = {
+      autoRenewStatus: autoRenewStatus === 1, // Convert to boolean
+      lastVerified: new Date(),
+      'pendingRenewalInfo.autoRenewStatus': !!autoRenewStatus,
+    };
 
-    // Update subscription with auto-renewal status
+    // update if it exists in the payload
+    if (renewalInfo.expiresDate) {
+      updateFields.expiresDate = new Date(renewalInfo.expiresDate);
+    }
+
     const subscription = await Models.Subscription.findOneAndUpdate(
       { originalTransactionId },
-      {
-        autoRenewStatus: autoRenewStatus === 1, // Convert to boolean
-        expiresDate: new Date(expiresDate),
-        lastVerified: new Date(),
-        'pendingRenewalInfo.autoRenewStatus': !!autoRenewStatus,
-      },
+      updateFields,
       { new: true }
+    ).select('_id productId status expiresDate user');
+
+    const user = await Models.User.findById(subscription.user).select(
+      '_id firstName lastName email'
     );
+    // send mail
     await sendRenewalStatusEmail(user.email, {
       user,
       subscription,
@@ -434,13 +413,14 @@ async function handleGracePeriodExpiration(data) {
         lastVerified: new Date(),
       },
       { new: true }
-    );
+    ).select('_id productId status expiresDate user');
 
     // Update user subscription status
     if (subscription) {
       const user = await Models.User.findByIdAndUpdate(subscription.user, {
         isSubscribed: false,
-      });
+      }).select('_id firstName lastName email');
+
       if (user) {
         // send mail
         await sendGracePeriodExpiredEmail(user.email, {
@@ -486,7 +466,7 @@ async function handleExpiration(data) {
         lastVerified: new Date(),
       },
       { new: true }
-    );
+    ).select('_id productId status expiresDate user');
 
     if (!subscription) {
       console.error(
@@ -498,7 +478,8 @@ async function handleExpiration(data) {
       // Update user subscription status
       const user = await Models.User.findByIdAndUpdate(subscription.user, {
         isSubscribed: false,
-      });
+      }).select('_id firstName lastName email');
+
       if (user) {
         // Send expiration email
         await sendExpirationEmail(user.email, {
@@ -514,7 +495,7 @@ async function handleExpiration(data) {
     throw error;
   }
 }
-// --------------- yet to test or future implementation----------------
+
 // Handler for subscription RENEWAL
 async function handleRenewal(data) {
   try {
@@ -536,7 +517,7 @@ async function handleRenewal(data) {
         lastVerified: new Date(),
       },
       { new: true }
-    );
+    ).select('_id productId status expiresDate user');
 
     if (!subscription) {
       console.error(
@@ -556,6 +537,8 @@ async function handleRenewal(data) {
     throw error;
   }
 }
+
+// --------------- yet to test or future implementation----------------
 
 // Handler for FAILED RENEWAL
 async function handleFailedRenewal(data) {

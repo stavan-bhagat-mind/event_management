@@ -133,4 +133,5 @@ const validateId = (id) => {
 module.exports = {
   validateEventData,
   validateEventsData,
+  validateId
 };

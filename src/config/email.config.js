@@ -110,10 +110,10 @@ const sendSubscriptionEmail = async (email, data) => {
         'Payment Failed for Your Subscription',
       template: 'subscription.template',
       icon: 'https://static.vecteezy.com/system/resources/previews/004/968/453/non_2x/failed-to-make-payment-by-credit-card-concept-illustration-flat-design-eps10-modern-graphic-element-for-landing-page-empty-state-ui-infographic-vector.jpg',
-      action: {
-        text: 'Update Payment Method',
-        url: `${process.env.CLIENT_URL}/account/payment`,
-      },
+      // action: {
+      //   text: 'Update Payment Method',
+      //   url: `${process.env.CLIENT_URL}/account/payment`,
+      // },
     },
     CANCELLATION: {
       subject:
@@ -121,30 +121,30 @@ const sendSubscriptionEmail = async (email, data) => {
         'Subscription Cancellation Confirmed',
       template: 'subscription.template',
       icon: 'https://png.pngtree.com/png-vector/20221125/ourmid/pngtree-cancel-icon-png-image_6480369.png',
-      action: {
-        text: 'Resubscribe',
-        url: `${process.env.CLIENT_URL}/pricing`,
-      },
+      // action: {
+      //   text: 'Resubscribe',
+      //   url: `${process.env.CLIENT_URL}/pricing`,
+      // },
     },
     EXPIRATION: {
       subject:
         EMAIL.SUBJECTS.SUBSCRIPTION_EXPIRED || 'Your Subscription Has Expired',
       template: 'subscription.template',
       icon: 'https://cdn-icons-png.freepik.com/256/5626/5626141.png?semt=ais_hybrid',
-      action: {
-        text: 'Renew Subscription',
-        url: `${process.env.CLIENT_URL}/pricing`,
-      },
+      // action: {
+      //   text: 'Renew Subscription',
+      //   url: `${process.env.CLIENT_URL}/pricing`,
+      // },
     },
     RENEWAL_STATUS: {
       subject:
         EMAIL.SUBJECTS.RENEWAL_STATUS || 'Subscription Renewal Status Updated',
       template: 'subscription.template',
       icon: 'https://cdn-icons-png.flaticon.com/512/11264/11264720.png',
-      action: {
-        text: 'Manage Subscription',
-        url: `${process.env.CLIENT_URL}/account/subscription`,
-      },
+      // action: {
+      //   text: 'Manage Subscription',
+      //   url: `${process.env.CLIENT_URL}/account/subscription`,
+      // },
     },
     RECOVERY: {
       subject:
@@ -152,10 +152,10 @@ const sendSubscriptionEmail = async (email, data) => {
         'Your Subscription Has Been Recovered',
       template: 'subscription.template',
       icon: 'https://i.ibb.co/recovery-icon.png',
-      action: {
-        text: 'View Subscription',
-        url: `${process.env.CLIENT_URL}/account/subscription`,
-      },
+      // action: {
+      //   text: 'View Subscription',
+      //   url: `${process.env.CLIENT_URL}/account/subscription`,
+      // },
     },
     GRACE_PERIOD_EXPIRED: {
       subject:
@@ -163,30 +163,30 @@ const sendSubscriptionEmail = async (email, data) => {
         'Grace Period Ended - Subscription Expired',
       template: 'subscription.template',
       icon: 'https://cdn-icons-png.flaticon.com/512/2037/2037117.png',
-      action: {
-        text: 'Renew Subscription',
-        url: `${process.env.CLIENT_URL}/pricing`,
-      },
+      // action: {
+      //   text: 'Renew Subscription',
+      //   url: `${process.env.CLIENT_URL}/pricing`,
+      // },
     },
     SUBSCRIPTION_STARTED: {
       subject:
         EMAIL.SUBJECTS.SUBSCRIPTION_STARTED || 'Welcome to Your Subscription',
       template: 'subscription.template',
       icon: 'https://img.freepik.com/premium-vector/success-online-payment-icon-illustration-design_8499-6184.jpg',
-      action: {
-        text: 'View Subscription',
-        url: `${process.env.CLIENT_URL}/account/subscription`,
-      },
+      // action: {
+      //   text: 'View Subscription',
+      //   url: `${process.env.CLIENT_URL}/account/subscription`,
+      // },
     },
     PLAN_CHANGED: {
       subject:
         EMAIL.SUBJECTS.PLAN_CHANGED || 'Your Subscription Plan Has Changed',
       template: 'subscription.template',
       icon: 'https://cdn-icons-png.flaticon.com/512/11287/11287714.png',
-      action: {
-        text: 'View Subscription',
-        url: `${process.env.CLIENT_URL}/account/subscription`,
-      },
+      // action: {
+      //   text: 'View Subscription',
+      //   url: `${process.env.CLIENT_URL}/account/subscription`,
+      // },
     },
   };
 

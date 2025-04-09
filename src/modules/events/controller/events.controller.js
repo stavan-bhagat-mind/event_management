@@ -9,6 +9,7 @@ const {
 const FileService = require('../../../services/file.service');
 const {
   validateEventData,
+  validateId,
 } = require('../../../modules/events/validations/event.validations');
 require('dotenv').config();
 const {
@@ -224,12 +225,12 @@ async function updateEventHandler(req, res) {
 // Delete Event Handler
 async function deleteEventHandler(req, res) {
   try {
-    const { success, value } = validateEventData(req.params.id, res);
+    const { success, value } = validateId(req.params.id, res);
     if (!success) {
       return validationErrorResponseData(res, value.message);
     }
     const event = await Models.Event.findOne({
-      _id: req.params.id,
+      _id: value.id,
       creator: req.userId,
     });
 
