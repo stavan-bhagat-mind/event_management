@@ -68,7 +68,7 @@
                     "
                   >
                     <img
-                      src="<%= templateData.imageUrl %>"
+                      src="<%= imageUrl %>"
                       alt="Verification Icon"
                       style="width: 100%; height: 100%; object-fit: contain"
                     />
@@ -78,7 +78,7 @@
                 <h1
                   style="color: #1a1a1a; font-size: 24px; margin-bottom: 20px"
                 >
-                  <%=templateData.emailType%> of your email address
+                  <%=emailType%> of your email address
                 </h1>
               </td>
             </tr>
@@ -95,7 +95,7 @@
                     text-align: center;
                   "
                 >
-                  A <%=templateData.emailType%> Request has been received to
+                  A <%=emailType%> Request has been received to
                   your email
                   <a
                     href="mailto:<%= email %>"
@@ -104,7 +104,7 @@
                       text-decoration: none;
                       font-weight: 500;
                     "
-                    ><%= templateData.email %></a
+                    ><%= email %></a
                   >
                 </p>
                 <p
@@ -117,7 +117,7 @@
                   "
                 >
                   Please click the button below to complete your account
-                  <%=templateData.emailType%>.
+                  <%=emailType%>.
                 </p>
 
                 <!-- Button -->
@@ -131,7 +131,7 @@
                   <tr>
                     <td align="center">
                       <a
-                        href="<%= templateData.verificationUrl %>"
+                        href="<%= verificationUrl %>"
                         style="
                           display: inline-block;
                           background-color: #10b981;
@@ -143,7 +143,7 @@
                           font-size: 14px;
                         "
                       >
-                        Complete Your <%=templateData.emailType%>
+                        Complete Your <%=emailType%>
                       </a>
                     </td>
                   </tr>
@@ -187,7 +187,7 @@
                       >
                         Need help?
                         <a
-                          href="<%= templateData.supportUrl %>"
+                          href="<%= supportUrl %>"
                           style="color: #10b981; text-decoration: none"
                           >Contact Support</a
                         >
@@ -215,7 +215,7 @@
                             style="vertical-align: middle; padding-right: 10px"
                           >
                             <img
-                              src="<%= templateData.logo %>"
+                              src="<%= logo %>"
                               alt="Company Logo"
                               width="40"
                               style="
@@ -233,7 +233,7 @@
                                 font-weight: 600;
                                 white-space: nowrap;
                               "
-                              ><%= templateData.appName %></span
+                              ><%= appName %></span
                             >
                           </td>
                         </tr>

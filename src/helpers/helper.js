@@ -154,7 +154,7 @@ async function verifyLegacyReceipt(receiptData, isSandbox = false, userId) {
     } else {
       subscriptionStatus = 'active';
     }
-
+    console.log('subscriptionStatus', subscriptionStatus);
     // 1. Find or create subscription
     const subscription = await Models.Subscription.findOneAndUpdate(
       { originalTransactionId: latestReceiptInfo.original_transaction_id },
@@ -180,7 +180,11 @@ async function verifyLegacyReceipt(receiptData, isSandbox = false, userId) {
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
-
+    console.log('subscription -------', subscription);
+    console.log(
+      'status-------',
+      ['active', 'trial'].includes(subscription.status)
+    );
     // 2. Update user's subscription
     await Models.User.findByIdAndUpdate(userId, {
       isSubscribed: ['active', 'trial'].includes(subscription.status),

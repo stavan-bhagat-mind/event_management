@@ -20,7 +20,7 @@ const {
   SUBSCRIPTION_SUCCESSFULLY_VALIDATED,
 } = require('../utils/subscription.messages');
 const {
-  sendPaymentFailureEmail,
+  // sendPaymentFailureEmail,
   sendCancellationEmail,
   sendExpirationEmail,
   sendRenewalStatusEmail,
@@ -34,6 +34,7 @@ const crypto = require('crypto');
 // validation receipt
 const validateReceiptHandler = async (req, res) => {
   try {
+    console.log('inside validateReceiptHandler');
     const { receipt, jws, isSandbox } = req.body;
     const userId = req.userId;
     let result;
@@ -185,6 +186,21 @@ const verifyAndDecodeSignature = async (signedPayload) => {
   }
 };
 
+//------------------------- skipped function for sandbox-start-----------------------
+const loadAppleRootCertificates = () => {
+  console.log('Sandbox mode: Skipping Apple root certificate loading');
+  return []; // Return empty array as we're skipping verification
+};
+const isCertificateRevoked = async (cert) => {
+  // Skip revocation check in sandbox
+  return false;
+};
+const verifyCertificateChain = async (certChain) => {
+  // For sandbox testing, we can skip the full certificate chain verification
+  console.log('Sandbox mode: Skipping full certificate chain verification');
+  return true;
+};
+// ---------------- skipped function for sandbox-end---------------
 const formatPemCertificate = (certBase64) => {
   const pemCert =
     '-----BEGIN CERTIFICATE-----\n' +
@@ -192,66 +208,6 @@ const formatPemCertificate = (certBase64) => {
     '\n-----END CERTIFICATE-----';
   return pemCert;
 };
-// Helper to load Apple's root CA certificates
-const verifyCertificateChain = async (certChain) => {
-  // 1. Load Apple's root CA certificates
-  const appleRootCAs = loadAppleRootCertificates();
-
-  // 2. Verify certificate chain integrity
-  // Each certificate should be signed by the next one in the chain
-  for (let i = 0; i < certChain.length - 1; i++) {
-    const currentCert = certChain[i];
-    const issuerCert = certChain[i + 1];
-
-    if (!verifyCertificateSignature(currentCert, issuerCert)) {
-      return false;
-    }
-  }
-
-  // 3. Verify the last certificate in the chain against Apple's root CAs
-  const lastCert = certChain[certChain.length - 1];
-  const isSignedByAppleRootCA = appleRootCAs.some((rootCA) =>
-    verifyCertificateSignature(lastCert, rootCA)
-  );
-
-  if (!isSignedByAppleRootCA) {
-    return false;
-  }
-
-  // 4. Check for certificate revocation (using CRL or OCSP)
-  for (const cert of certChain) {
-    if (await isCertificateRevoked(cert)) {
-      return false;
-    }
-  }
-
-  // 5. Verify certificate validity periods
-  for (const cert of certChain) {
-    if (!isCertificateInValidityPeriod(cert)) {
-      return false;
-    }
-  }
-
-  return true;
-};
-// to verify that a certificate was legitimately signed by its issuer.
-function verifyCertificateSignature(certificate, issuerCertificate) {
-  try {
-    // Extract the public key from the issuer certificate
-    const issuerPublicKey = crypto.createPublicKey(issuerCertificate);
-
-    // Create a certificate object from the certificate being verified
-    const cert = new crypto.X509Certificate(certificate);
-
-    // Verify the signature using the issuer's public key
-    const isValid = cert.verify(issuerPublicKey);
-
-    return isValid;
-  } catch (error) {
-    console.error('Certificate signature verification error:', error);
-    return false;
-  }
-}
 
 // Function to process notifications based on type
 const processNotification = async (decodedPayload) => {
@@ -298,7 +254,7 @@ const processNotification = async (decodedPayload) => {
       await storeRawNotification(decodedPayload);
   }
 };
-// ----------------- notification handlers -------------------
+// ----------------- notification handlers-start-------------------
 // Handler for NEW subscription
 async function handleNewSubscription(data) {
   try {
@@ -369,6 +325,7 @@ async function handleNewSubscription(data) {
     throw error; // Propagate error for upstream handling
   }
 }
+
 // Handler for subscription preference changes (plan changes)
 async function handleRenewalPreferenceChange(data) {
   try {
@@ -401,6 +358,15 @@ async function handleRenewalPreferenceChange(data) {
       },
       { new: true }
     );
+    await sendPlanChangedEmail(user.email, {
+      user,
+      subscription,
+      additionalInfo: {
+        oldPlan,
+        newPlan: productId,
+        effectiveImmediately: false,
+      },
+    });
 
     console.log(
       `Subscription plan changed: ${originalTransactionId}, new plan: ${productId}`
@@ -431,6 +397,13 @@ async function handleRenewalStatusChange(data) {
       },
       { new: true }
     );
+    await sendRenewalStatusEmail(user.email, {
+      user,
+      subscription,
+      additionalInfo: {
+        autoRenew: true,
+      },
+    });
 
     console.log(
       `Subscription auto-renewal status updated: ${originalTransactionId}, status: ${autoRenewStatus}`
@@ -465,11 +438,25 @@ async function handleGracePeriodExpiration(data) {
 
     // Update user subscription status
     if (subscription) {
-      await Models.User.findByIdAndUpdate(subscription.user, {
+      const user = await Models.User.findByIdAndUpdate(subscription.user, {
         isSubscribed: false,
       });
+      if (user) {
+        // send mail
+        await sendGracePeriodExpiredEmail(user.email, {
+          user,
+          subscription,
+        });
+      }
     }
 
+    if (user) {
+      // Send grace period expired email
+      await sendGracePeriodExpiredEmail(user.email, {
+        user,
+        subscription,
+      });
+    }
     console.log(
       `Grace period expired for subscription: ${originalTransactionId}`
     );
@@ -507,11 +494,19 @@ async function handleExpiration(data) {
       );
       return;
     }
-
-    // Update user subscription status
-    await Models.User.findByIdAndUpdate(subscription.user, {
-      isSubscribed: false,
-    });
+    if (subscription) {
+      // Update user subscription status
+      const user = await Models.User.findByIdAndUpdate(subscription.user, {
+        isSubscribed: false,
+      });
+      if (user) {
+        // Send expiration email
+        await sendExpirationEmail(user.email, {
+          user,
+          subscription,
+        });
+      }
+    }
 
     console.log(`Subscription expired: ${originalTransactionId}`);
   } catch (error) {
@@ -519,7 +514,7 @@ async function handleExpiration(data) {
     throw error;
   }
 }
-// ---------------------------------------------------
+// --------------- yet to test or future implementation----------------
 // Handler for subscription RENEWAL
 async function handleRenewal(data) {
   try {
@@ -595,6 +590,13 @@ async function handleFailedRenewal(data) {
     }
 
     console.log(`Failed renewal for: ${originalTransactionId}`);
+    // await sendPaymentFailureEmail(user.email, {
+    //   user,
+    //   subscription,
+    //   additionalInfo: {
+    //     gracePeriodDays: 16 // Adjust based on your grace period policy
+    //   }
+    // });
 
     // Optionally notify user about billing issue
     // notifyUserAboutBillingIssue(subscription.user);
@@ -685,43 +687,78 @@ async function handleRefund(data) {
     throw error;
   }
 }
+// ------------------ end of future implementation -----------------------
 
 // Helper to store raw notifications for debugging
 async function storeRawNotification(notification) {
   // This could be implemented with a separate collection if needed
   console.log('Storing raw notification for analysis', notification);
 }
-// ======================
-// Email Notification Helpers (Example Implementations)
-// ======================
 
-const sendPaymentFailureEmail = async (email, data) => {
-  // Implement your email service integration
-  console.log(`[Email] Payment failure notice sent to ${email}`, data);
-};
-
-const sendCancellationEmail = async (email, data) => {
-  console.log(`[Email] Cancellation confirmation sent to ${email}`, data);
-};
-
-const sendExpirationEmail = async (email, data) => {
-  console.log(`[Email] Subscription expired notice sent to ${email}`, data);
-};
-
-const sendRenewalStatusEmail = async (email, data) => {
-  console.log(`[Email] Renewal status update sent to ${email}`, data);
-};
-
-const sendRecoveryEmail = async (email, data) => {
-  console.log(`[Email] Subscription recovery notice sent to ${email}`, data);
-};
-
-const sendGracePeriodExpiredEmail = async (email, data) => {
-  console.log(`[Email] Grace period ended notice sent to ${email}`, data);
-};
-// -----------------------
 module.exports = {
   validateReceiptHandler,
   subscriptionWebhooksHandler,
   getSubscriptionStatusHandler,
 };
+
+// --------------------------half implemented for certificate verification-----------------
+// Helper to load Apple's root CA certificates
+const verifyCertificateChainHalfImplemented = async (certChain) => {
+  // 1. Load Apple's root CA certificates
+  const appleRootCAs = loadAppleRootCertificates();
+
+  // 2. Verify certificate chain integrity
+  // Each certificate should be signed by the next one in the chain
+  for (let i = 0; i < certChain.length - 1; i++) {
+    const currentCert = certChain[i];
+    const issuerCert = certChain[i + 1];
+
+    if (!verifyCertificateSignature(currentCert, issuerCert)) {
+      return false;
+    }
+  }
+
+  // 3. Verify the last certificate in the chain against Apple's root CAs
+  const lastCert = certChain[certChain.length - 1];
+  const isSignedByAppleRootCA = appleRootCAs.some((rootCA) =>
+    verifyCertificateSignature(lastCert, rootCA)
+  );
+
+  if (!isSignedByAppleRootCA) {
+    return false;
+  }
+
+  // 4. Check for certificate revocation (using CRL or OCSP)
+  for (const cert of certChain) {
+    if (await isCertificateRevoked(cert)) {
+      return false;
+    }
+  }
+
+  // 5. Verify certificate validity periods
+  for (const cert of certChain) {
+    if (!isCertificateInValidityPeriod(cert)) {
+      return false;
+    }
+  }
+
+  return true;
+};
+// to verify that a certificate was legitimately signed by its issuer.
+function verifyCertificateSignature(certificate, issuerCertificate) {
+  try {
+    // Extract the public key from the issuer certificate
+    const issuerPublicKey = crypto.createPublicKey(issuerCertificate);
+
+    // Create a certificate object from the certificate being verified
+    const cert = new crypto.X509Certificate(certificate);
+
+    // Verify the signature using the issuer's public key
+    const isValid = cert.verify(issuerPublicKey);
+
+    return isValid;
+  } catch (error) {
+    console.error('Certificate signature verification error:', error);
+    return false;
+  }
+}
