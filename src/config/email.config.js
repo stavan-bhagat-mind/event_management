@@ -14,7 +14,7 @@ const transporter = nodemailer.createTransport({
 
 // Common assets
 const assets = {
-  logo: 'https://i.ibb.co/0pgvhwhZ/rn-image-picker-lib-temp-22395d66-3916-47ad-8c4c-5e04f38bc9c5.png',
+  logo: 'https://i.postimg.cc/90hMnP5x/rn-image-picker-lib-temp-22395d66-3916-47ad-8c4c-5e04f38bc9c5.png',
   subscription: 'https://cdn-icons-png.flaticon.com/512/5234/5234307.png',
   supportUrl: 'https://support.google.com/',
   appName: APP.NAME,

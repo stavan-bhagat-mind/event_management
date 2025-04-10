@@ -277,6 +277,7 @@ async function handleNewSubscription(data) {
 
     // Send welcome email
     await sendSubscriptionStartedEmail(user.email, {
+      user,
       subscription,
       additionalInfo: {
         isTrial: offerType === 'TRIAL',
