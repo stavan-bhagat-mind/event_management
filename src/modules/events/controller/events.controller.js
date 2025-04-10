@@ -225,7 +225,7 @@ async function updateEventHandler(req, res) {
 // Delete Event Handler
 async function deleteEventHandler(req, res) {
   try {
-    const { success, value } = validateId(req.params.id, res);
+    const { success, value } = validateId({ id: req.params.id });
     if (!success) {
       return validationErrorResponseData(res, value.message);
     }
@@ -326,7 +326,11 @@ async function getUserCreatedEventsHandler(req, res) {
 // Get Event Details
 async function getEventDetailsHandler(req, res) {
   try {
-    const event = await Models.Event.findById(req.params.id).select(
+    const { success, value } = validateId({ id: req.params.id });
+    if (!success) {
+      return validationErrorResponseData(res, value.message);
+    }
+    const event = await Models.Event.findById(value.id).select(
       '-createdDuringTrial'
     );
 
@@ -407,6 +411,7 @@ async function getAllPublishedEventsHandler(req, res) {
     );
   }
 }
+
 // ------------------------------------saved event-----------------------------------------
 
 // save Events
@@ -451,6 +456,7 @@ async function saveEventHandler(req, res) {
     );
   }
 }
+
 // removeSavedEventHandler
 async function removeSavedEventHandler(req, res) {
   try {
