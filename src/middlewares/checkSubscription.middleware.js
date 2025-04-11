@@ -4,14 +4,19 @@ const {
   MANAGER_ONLY_CREATE_EVENT,
 } = require('../modules/events/utils/events.messages');
 const { errorResponseWithoutData } = require('../utils/response');
-const { ROLE } = require('../utils/common/constants');
+const { ROLE, CATEGORY } = require('../utils/common/constants');
 const {
   MSG_INTERNAL_SERVER_ERROR,
   COMMON_MSG,
+  MONTHLY_LIMIT_EXCEEDED,
+  TRIAL_PERIOD_EXPIRED,
+  EVENT_CREATION_RESTRICTED,
 } = require('../utils/common/messages');
 const {
+  PRODUCT_ID,
+} = require('../modules/subscription/utils/subscription.constant');
+const {
   STATUS_INTERNAL_SERVER_ERROR,
-  STATUS_BAD_REQUEST,
   STATUS_NOT_FOUND,
   STATUS_FORBIDDEN,
 } = require('../utils/common/constants');
@@ -29,7 +34,7 @@ const checkSubscription = async (req, res, next) => {
       return errorResponseWithoutData(
         res,
         STATUS_NOT_FOUND,
-        COMMON_MSG.NOT_FOUND.replace('##', 'User')
+        COMMON_MSG.NOT_FOUND.replace('##', CATEGORY.USER)
       );
     }
 
@@ -62,7 +67,7 @@ const checkSubscription = async (req, res, next) => {
     let eventCount;
     const now = new Date();
 
-    if (subscription.productId === 'com.monthly') {
+    if (subscription.productId === PRODUCT_ID.MONTHLY) {
       // For monthly subscriptions, count events created THIS MONTH
       const startOfMonth = moment().startOf('month').toDate();
       eventCount = await Models.Event.countDocuments({
@@ -84,25 +89,24 @@ const checkSubscription = async (req, res, next) => {
     if (subscription.status === 'trial' && subscription.expiresDate > now) {
       canCreateEvent = true;
       shouldMarkAsTrial = true;
-    } else if (subscription.productId === 'com.yearly') {
+    } else if (subscription.productId === PRODUCT_ID.YEARLY) {
       canCreateEvent = true;
-    } else if (subscription.productId === 'com.monthly') {
-      canCreateEvent = eventCount <=3; // Monthly limit: 10 events
+    } else if (subscription.productId === PRODUCT_ID.MONTHLY) {
+      canCreateEvent = eventCount <= 3; // Monthly limit: 10 events
     }
 
     // 6. Reject if limits are exceeded
     if (!canCreateEvent) {
       let message;
-      if (subscription.productId === 'com.monthly') {
-        message =
-          'Monthly event limit (10) reached. Upgrade to yearly for unlimited.';
+      if (subscription.productId === PRODUCT_ID.MONTHLY) {
+        message = MONTHLY_LIMIT_EXCEEDED;
       } else if (
         subscription.status === 'trial' &&
         subscription.expiresDate <= now
       ) {
-        message = 'Trial period expired. Subscribe to continue.';
+        message = TRIAL_PERIOD_EXPIRED;
       } else {
-        message = 'Event creation not allowed for your subscription.';
+        message = EVENT_CREATION_RESTRICTED;
       }
       return errorResponseWithoutData(res, STATUS_FORBIDDEN, message);
     }

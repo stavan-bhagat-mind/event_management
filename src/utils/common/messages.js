@@ -48,6 +48,13 @@ module.exports = {
   MSG_INVALID_REFRESH_TOKEN: 'Invalid refresh token.',
   MSG_LINK_EXPIRE:
     'The verification link has expired. Please request a new verification link.',
+  TOO_MANY_ATTEMPTS: 'Too many attempts',
+  // subscription
+  MONTHLY_LIMIT_EXCEEDED:
+    'Monthly event limit (10) reached. Upgrade to yearly for unlimited.',
+  TRIAL_PERIOD_EXPIRED: 'Trial period expired. Subscribe to continue.',
+  EVENT_CREATION_RESTRICTED:
+    'Event creation is restricted. Please subscribe to continue.',
   // email-Messages
   MSG_VERIFY_EMAIL: 'Please verify your email address.',
   MSG_RESET_PASSWORD_EMAIL_SENT: 'Reset password email sent successfully.',

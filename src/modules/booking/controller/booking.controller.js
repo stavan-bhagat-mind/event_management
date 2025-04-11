@@ -39,7 +39,7 @@ const getBookingDetailsHandler = async (req, res) => {
       return errorResponseWithoutData(
         res,
         STATUS_NOT_FOUND,
-        COMMON_MSG.NOT_FOUND.replace('##', 'Booking')
+        COMMON_MSG.NOT_FOUND.replace('##', CATEGORY.BOOKING)
       );
     }
     if (booking.event && booking.event.images) {
@@ -51,7 +51,7 @@ const getBookingDetailsHandler = async (req, res) => {
       res,
       booking,
       STATUS_SUCCESS,
-      COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Booking'),
+      COMMON_MSG.FETCHED_SUCCESS.replace('##', CATEGORY.BOOKING),
       { total: booking.length }
     );
   } catch (error) {
@@ -85,7 +85,7 @@ const getBookingListHandler = async (req, res) => {
       return errorResponseWithoutData(
         res,
         STATUS_NOT_FOUND,
-        COMMON_MSG.NOT_FOUND.replace('##', 'Booking')
+        COMMON_MSG.NOT_FOUND.replace('##', CATEGORY.BOOKING)
       );
     }
 
@@ -109,7 +109,7 @@ const getBookingListHandler = async (req, res) => {
       res,
       modifiedBookings,
       STATUS_SUCCESS,
-      COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Booking'),
+      COMMON_MSG.FETCHED_SUCCESS.replace('##', CATEGORY.BOOKING),
       { total: modifiedBookings.length }
     );
   } catch (error) {
@@ -141,7 +141,7 @@ const getEventAttendeeListHandler = async (req, res) => {
       return errorResponseWithoutData(
         res,
         STATUS_NOT_FOUND,
-        COMMON_MSG.NOT_FOUND.replace('##', 'Booking')
+        COMMON_MSG.NOT_FOUND.replace('##', CATEGORY.BOOKING)
       );
     }
     const modifiedBookings = booking.map((booking) => {
@@ -162,10 +162,9 @@ const getEventAttendeeListHandler = async (req, res) => {
 
     return successResponseData(
       res,
-      // booking,
       modifiedBookings,
       STATUS_SUCCESS,
-      COMMON_MSG.FETCHED_SUCCESS.replace('##', 'Booking'),
+      COMMON_MSG.FETCHED_SUCCESS.replace('##', CATEGORY.BOOKING),
       { total: booking.length }
     );
   } catch (error) {
@@ -212,7 +211,6 @@ const validateQRCodeHandler = async (req, res) => {
         event: booking.event,
         seats: booking.seatsBooked,
         userProfile: FileService.getFullUrl(booking.user.profilePictureUrl),
-        // userProfile: '',
       });
     } catch (error) {
       console.error('Error displaying ticket:', error);

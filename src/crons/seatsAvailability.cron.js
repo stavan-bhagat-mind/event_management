@@ -1,64 +1,3 @@
-// // Install: npm install node-cron
-// const cron = require('node-cron');
-// const Models = require('../models/index');
-
-// // Run every minute
-// cron.schedule('* * * * *', async () => {
-//   try {
-//     const time = new Date(Date.now() - 15 * 60 * 1000);
-
-//     // Find bookings that need to be expired
-//     const pendingBookings = await Models.Booking.find({
-//       status: 'PENDING',
-//       createdAt: { $lt: time },
-//     });
-
-//     if (pendingBookings.length > 0) {
-//       console.log(`Found ${pendingBookings.length} expired pending bookings`);
-
-//       // Process each booking
-//       for (const booking of pendingBookings) {
-//         // Update booking status
-//         booking.status = 'EXPIRED';
-//         await booking.save();
-
-//         // Update payment status
-//         if (booking.payment) {
-//           await Models.Payment.findByIdAndUpdate(booking.payment, {
-//             $set: { status: 'FAILED' },
-//           });
-
-//           try {
-//             const payment = await Models.Payment.findById(booking.payment);
-//             if (payment && payment.paymentIntentId) {
-//               // Cancel the Stripe payment intent if it exists and isn't already completed
-//               const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-//               await stripe.paymentIntents.cancel(payment.paymentIntentId);
-//             }
-//           } catch (stripeError) {
-//             console.error(
-//               `Could not cancel Stripe payment: ${stripeError.message}`
-//             );
-//           }
-//         }
-
-//         // Update event's seat count
-//         await Models.Event.findByIdAndUpdate(booking.event, {
-//           $inc: { 'seats.booked': -booking.seatsBooked },
-//         });
-//       }
-
-//       console.log(
-//         `Successfully processed ${pendingBookings.length} expired bookings`
-//       );
-//     }
-//   } catch (error) {
-//     console.error('Error in booking expiration job:', error);
-//   }
-// });
-
-// console.log('Booking expiration job scheduled');
-// ---------------------
 const cron = require('node-cron');
 const Models = require('../models/index');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
@@ -111,9 +50,13 @@ cron.schedule('*/7 * * * *', async () => {
               if (payment && payment.paymentIntentId) {
                 try {
                   await stripe.paymentIntents.cancel(payment.paymentIntentId);
-                  console.log(`Cancelled Stripe payment intent: ${payment.paymentIntentId}`);
+                  console.log(
+                    `Cancelled Stripe payment intent: ${payment.paymentIntentId}`
+                  );
                 } catch (stripeError) {
-                  console.error(`Could not cancel Stripe payment: ${stripeError.message}`);
+                  console.error(
+                    `Could not cancel Stripe payment: ${stripeError.message}`
+                  );
                 }
               }
             })
@@ -149,18 +92,17 @@ cron.schedule('*/7 * * * *', async () => {
       console.log('Processing Stripe cancellations...');
       await Promise.allSettled(stripeOperations);
 
-      console.log(`Successfully processed ${pendingBookings.length} expired bookings`);
+      console.log(
+        `Successfully processed ${pendingBookings.length} expired bookings`
+      );
     }
 
-    // Commit the transaction
     await session.commitTransaction();
     console.log('Transaction committed successfully');
   } catch (error) {
-    // Rollback the transaction on error
     await session.abortTransaction();
     console.error('Error in booking expiration job:', error);
   } finally {
-    // End the session
     session.endSession();
     console.log('Cron job session ended');
   }

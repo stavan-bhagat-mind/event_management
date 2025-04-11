@@ -20,14 +20,14 @@ const {
   SUBSCRIPTION_SUCCESSFULLY_VALIDATED,
 } = require('../utils/subscription.messages');
 const {
-  // sendPaymentFailureEmail,
-  sendCancellationEmail,
   sendExpirationEmail,
   sendRenewalStatusEmail,
-  sendRecoveryEmail,
   sendGracePeriodExpiredEmail,
   sendSubscriptionStartedEmail,
   sendPlanChangedEmail,
+  // sendPaymentFailureEmail,
+  // sendCancellationEmail,
+  // sendRecoveryEmail,
 } = require('../../../config/email.config');
 const crypto = require('crypto');
 

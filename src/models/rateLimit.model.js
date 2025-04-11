@@ -7,7 +7,6 @@ const rateLimitSchema = new mongoose.Schema({
   lastAttempt: { type: Date, default: Date.now },
 });
 
-// Performance indexes
 rateLimitSchema.index({ identifier: 1, actionType: 1 });
 // This will automatically delete documents 1 hour after their lastAttempt
 rateLimitSchema.index({ lastAttempt: 1 }, { expireAfterSeconds: 60 * 60 });

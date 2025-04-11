@@ -8,6 +8,11 @@ module.exports = {
   CATEGORY: {
     USER: 'User',
     EVENT: 'Event',
+    BOOKING: 'Booking',
+    PAYMENT: 'Payment',
+    SUBSCRIPTION: 'Subscription',
+    EMAIL: 'Email',
+    NOTIFICATION: 'Notification',
   },
   CODE: {
     SUCCESS: 1,
@@ -53,15 +58,19 @@ module.exports = {
         'https://cdn-icons-png.flaticon.com/512/5234/5234307.png',
       PAYMENT_FAILURE:
         'https://static.vecteezy.com/system/resources/previews/004/968/453/non_2x/failed-to-make-payment-by-credit-card-concept-illustration-flat-design-eps10-modern-graphic-element-for-landing-page-empty-state-ui-infographic-vector.jpg',
-    CANCELLATION:'https://png.pngtree.com/png-vector/20221125/ourmid/pngtree-cancel-icon-png-image_6480369.png',
-    EXPIRATION:'https://cdn-icons-png.freepik.com/256/5626/5626141.png?semt=ais_hybrid',
+      CANCELLATION:
+        'https://png.pngtree.com/png-vector/20221125/ourmid/pngtree-cancel-icon-png-image_6480369.png',
+      EXPIRATION:
+        'https://cdn-icons-png.freepik.com/256/5626/5626141.png?semt=ais_hybrid',
 
-    RENEWAL_STATUS: 'https://cdn-icons-png.flaticon.com/512/11264/11264720.png',
-    RECOVERY:'https://i.ibb.co/recovery-icon.png',
-    GRACE_PERIOD_EXPIRED:'https://cdn-icons-png.flaticon.com/512/2037/2037117.png',
-    SUBSCRIPTION_STARTED:'https://img.freepik.com/premium-vector/success-online-payment-icon-illustration-design_8499-6184.jpg',
-    PLAN_CHANGED:'https://cdn-icons-png.flaticon.com/512/11287/11287714.png',
-    
-      },
+      RENEWAL_STATUS:
+        'https://cdn-icons-png.flaticon.com/512/11264/11264720.png',
+      RECOVERY: 'https://i.ibb.co/recovery-icon.png',
+      GRACE_PERIOD_EXPIRED:
+        'https://cdn-icons-png.flaticon.com/512/2037/2037117.png',
+      SUBSCRIPTION_STARTED:
+        'https://img.freepik.com/premium-vector/success-online-payment-icon-illustration-design_8499-6184.jpg',
+      PLAN_CHANGED: 'https://cdn-icons-png.flaticon.com/512/11287/11287714.png',
+    },
   },
 };

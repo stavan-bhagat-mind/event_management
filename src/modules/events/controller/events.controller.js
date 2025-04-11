@@ -82,7 +82,7 @@ async function createEventHandler(req, res) {
       // createdDuringTrial: isTrialEvent,
     });
 
-    // Prepare response with full URLs
+    // response with full URLs
     const responseData = {
       ...event.toObject(),
       images: event.images.map((path) => FileService.getFullUrl(path)),

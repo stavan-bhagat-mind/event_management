@@ -1,20 +1,7 @@
-// const rateLimit = require('express-rate-limit');
-
-// const ResetRateLimiter = rateLimit({
-//   windowMs: 60 * 60 * 1000,
-//   max: 3,
-//   message:
-//     'Too many password reset requests from this IP, please try again later.',
-//   standardHeaders: true,
-//   legacyHeaders: false,
-// });
-
-// module.exports = {
-//   ResetRateLimiter,
-// };
 const Models = require('../models/index');
 const { errorResponseData } = require('../utils/response');
 const { STATUS_TO_MANY_REQUEST } = require('../utils/common/constants');
+const { TOO_MANY_ATTEMPTS } = require('../utils/common/messages');
 
 const defaultLimits = {
   'reset-password': { maxAttempts: 3, timeWindowInHours: 1 },
@@ -86,7 +73,7 @@ function createRateLimiter(actionType) {
     try {
       const identifier = req.body.email || req.ip;
 
-      // Add some logging to help debug
+      //  logging to  debug
       console.log('Rate limit check for:', { identifier, actionType });
 
       const result = await checkRateLimit(identifier, actionType);
@@ -95,7 +82,7 @@ function createRateLimiter(actionType) {
         return errorResponseData(
           res,
           STATUS_TO_MANY_REQUEST,
-          'Too many attempts',
+          TOO_MANY_ATTEMPTS,
           { tryAgainInMinutes: result.tryAgainInMinutes }
         );
       }
