@@ -2,6 +2,9 @@ const crypto = require('crypto');
 require('dotenv').config();
 const Models = require('../models/index');
 const FileService = require('../services/file.service');
+const {
+  SUBSCRIPTION_ACCOUNT_ALREADY_IN_USE,
+} = require('../modules/subscription/utils/subscription.messages');
 
 const generateOTP = (length = 6) => {
   // Generate a random  OTP
@@ -133,6 +136,19 @@ async function verifyLegacyReceipt(receiptData, isSandbox = false, userId) {
 
     const latestReceiptInfo = receipt.latest_receipt_info[0];
     const pendingRenewalInfo = receipt.pending_renewal_info?.[0] || {};
+
+    // When verifying a receipt
+    const existingSubscription = await Models.Subscription.findOne({
+      originalTransactionId: latestReceiptInfo.original_transaction_id,
+    });
+
+    if (
+      existingSubscription &&
+      existingSubscription.user.toString() !== userId.toString()
+    ) {
+      // This subscription is already linked to another user
+      throw new Error(SUBSCRIPTION_ACCOUNT_ALREADY_IN_USE);
+    }
 
     // Determine subscription status
     let subscriptionStatus;

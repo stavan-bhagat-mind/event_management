@@ -87,7 +87,7 @@ const checkSubscription = async (req, res, next) => {
     } else if (subscription.productId === 'com.yearly') {
       canCreateEvent = true;
     } else if (subscription.productId === 'com.monthly') {
-      canCreateEvent = eventCount < 10; // Monthly limit: 10 events
+      canCreateEvent = eventCount <=3; // Monthly limit: 10 events
     }
 
     // 6. Reject if limits are exceeded

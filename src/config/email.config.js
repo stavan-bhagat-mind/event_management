@@ -1,7 +1,12 @@
 const nodemailer = require('nodemailer');
 const ejs = require('ejs');
 const path = require('path');
-const { SERVICE_NAME, APP } = require('../utils/common/constants');
+const {
+  SERVICE_NAME,
+  APP,
+  IMAGE_URL,
+  LINKS,
+} = require('../utils/common/constants');
 const { EMAIL } = require('../utils/common/messages');
 
 const transporter = nodemailer.createTransport({
@@ -14,9 +19,9 @@ const transporter = nodemailer.createTransport({
 
 // Common assets
 const assets = {
-  logo: 'https://i.postimg.cc/90hMnP5x/rn-image-picker-lib-temp-22395d66-3916-47ad-8c4c-5e04f38bc9c5.png',
-  subscription: 'https://cdn-icons-png.flaticon.com/512/5234/5234307.png',
-  supportUrl: 'https://support.google.com/',
+  logo: IMAGE_URL.APP_LOGO,
+  subscription: IMAGE_URL.SUBSCRIPTION.SUBSCRIPTION_MAIN,
+  supportUrl: LINKS.SUPPORT,
   appName: APP.NAME,
 };
 
@@ -75,7 +80,7 @@ const sendVerificationEmail = async (
     return sendEmail(email, subject, 'verifyUser.template', {
       verificationUrl,
       emailType,
-      imageUrl: 'https://i.ibb.co/8L3gfy4F/email-2151046-640.webp',
+      imageUrl: IMAGE_URL.VERIFICATION,
     });
   } catch (error) {
     console.error('Error sending verification email:', error);
@@ -92,7 +97,7 @@ const sendResetPasswordEmail = async (email, resetToken, userName) => {
       {
         resetToken,
         userName,
-        imageUrl: 'https://i.ibb.co/bjn5nn6K/lock.png',
+        imageUrl: IMAGE_URL.RESET_PASSWORD,
       }
     );
   } catch (error) {
@@ -109,84 +114,52 @@ const sendSubscriptionEmail = async (email, data) => {
         EMAIL.SUBJECTS.PAYMENT_FAILURE ||
         'Payment Failed for Your Subscription',
       template: 'subscription.template',
-      icon: 'https://static.vecteezy.com/system/resources/previews/004/968/453/non_2x/failed-to-make-payment-by-credit-card-concept-illustration-flat-design-eps10-modern-graphic-element-for-landing-page-empty-state-ui-infographic-vector.jpg',
-      // action: {
-      //   text: 'Update Payment Method',
-      //   url: `${process.env.CLIENT_URL}/account/payment`,
-      // },
+      icon: IMAGE_URL.SUBSCRIPTION.PAYMENT_FAILURE,
     },
     CANCELLATION: {
       subject:
         EMAIL.SUBJECTS.SUBSCRIPTION_CANCELLED ||
         'Subscription Cancellation Confirmed',
       template: 'subscription.template',
-      icon: 'https://png.pngtree.com/png-vector/20221125/ourmid/pngtree-cancel-icon-png-image_6480369.png',
-      // action: {
-      //   text: 'Resubscribe',
-      //   url: `${process.env.CLIENT_URL}/pricing`,
-      // },
+      icon: IMAGE_URL.SUBSCRIPTION.CANCELLATION,
     },
     EXPIRATION: {
       subject:
         EMAIL.SUBJECTS.SUBSCRIPTION_EXPIRED || 'Your Subscription Has Expired',
       template: 'subscription.template',
-      icon: 'https://cdn-icons-png.freepik.com/256/5626/5626141.png?semt=ais_hybrid',
-      // action: {
-      //   text: 'Renew Subscription',
-      //   url: `${process.env.CLIENT_URL}/pricing`,
-      // },
+      icon: IMAGE_URL.SUBSCRIPTION.EXPIRATION,
     },
     RENEWAL_STATUS: {
       subject:
         EMAIL.SUBJECTS.RENEWAL_STATUS || 'Subscription Renewal Status Updated',
       template: 'subscription.template',
-      icon: 'https://cdn-icons-png.flaticon.com/512/11264/11264720.png',
-      // action: {
-      //   text: 'Manage Subscription',
-      //   url: `${process.env.CLIENT_URL}/account/subscription`,
-      // },
+      icon: IMAGE_URL.SUBSCRIPTION.RENEWAL_STATUS,
     },
     RECOVERY: {
       subject:
         EMAIL.SUBJECTS.SUBSCRIPTION_RECOVERED ||
         'Your Subscription Has Been Recovered',
       template: 'subscription.template',
-      icon: 'https://i.ibb.co/recovery-icon.png',
-      // action: {
-      //   text: 'View Subscription',
-      //   url: `${process.env.CLIENT_URL}/account/subscription`,
-      // },
+      icon: IMAGE_URL.SUBSCRIPTION.RECOVERY,
     },
     GRACE_PERIOD_EXPIRED: {
       subject:
         EMAIL.SUBJECTS.GRACE_PERIOD_EXPIRED ||
         'Grace Period Ended - Subscription Expired',
       template: 'subscription.template',
-      icon: 'https://cdn-icons-png.flaticon.com/512/2037/2037117.png',
-      // action: {
-      //   text: 'Renew Subscription',
-      //   url: `${process.env.CLIENT_URL}/pricing`,
-      // },
+      icon: IMAGE_URL.SUBSCRIPTION.GRACE_PERIOD_EXPIRED,
     },
     SUBSCRIPTION_STARTED: {
       subject:
         EMAIL.SUBJECTS.SUBSCRIPTION_STARTED || 'Welcome to Your Subscription',
       template: 'subscription.template',
-      icon: 'https://img.freepik.com/premium-vector/success-online-payment-icon-illustration-design_8499-6184.jpg',
-      // action: {
-      //   text: 'View Subscription',
-      //   url: `${process.env.CLIENT_URL}/account/subscription`,
-      // },
+      icon: IMAGE_URL.SUBSCRIPTION.SUBSCRIPTION_STARTED,
     },
     PLAN_CHANGED: {
       subject:
         EMAIL.SUBJECTS.PLAN_CHANGED || 'Your Subscription Plan Has Changed',
       template: 'subscription.template',
-      icon: 'https://cdn-icons-png.flaticon.com/512/11287/11287714.png',
-      // action: {
-      //   text: 'View Subscription',
-      //   url: `${process.env.CLIENT_URL}/account/subscription`,
-      // },
+      icon: IMAGE_URL.SUBSCRIPTION.PLAN_CHANGED,
     },
   };
 

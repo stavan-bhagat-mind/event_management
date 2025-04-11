@@ -7,13 +7,11 @@ const subscriptionSchema = new Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      index: true,
     },
     originalTransactionId: {
       type: String,
       required: true,
       unique: true,
-      index: true,
     },
     productId: {
       type: String,
@@ -37,13 +35,17 @@ const subscriptionSchema = new Schema(
       type: String,
       enum: ['active', 'expired', 'canceled', 'past_due', 'paused', 'trial'],
       default: 'active',
-      index: true,
     },
-    cancellationReason: { type: String }, // For tracking why subscription ended
+    cancellationReason: { type: String },
   },
   {
     timestamps: true,
-    indexes: [{ expiresDate: 1 }, { user: 1, isActive: 1 }],
+    indexes: [
+      { user: 1, originalTransactionId: 1, unique: true },
+      { user: 1, isActive: 1 },
+      { expiresDate: 1 },
+      { status: 1 },
+    ],
     // versionKey: false,
   }
 );
