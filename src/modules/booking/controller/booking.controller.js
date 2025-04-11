@@ -3,22 +3,15 @@ require('dotenv').config();
 
 const {
   successResponseData,
-  errorResponseData,
   errorResponseWithoutData,
-  validationErrorResponseData,
-  successResponseWithoutData,
 } = require('../../../utils/response');
 const {
   MSG_INTERNAL_SERVER_ERROR,
   COMMON_MSG,
-  INACTIVE_USER,
-  MSG_NO_CHANGES_MADE,
 } = require('../../../utils/common/messages');
 const {
   CATEGORY,
-  ROLE,
   STATUS_INTERNAL_SERVER_ERROR,
-  STATUS_BAD_REQUEST,
   STATUS_NOT_FOUND,
   STATUS_SUCCESS,
 } = require('../../../utils/common/constants');
@@ -222,7 +215,6 @@ const validateQRCodeHandler = async (req, res) => {
 };
 
 module.exports = {
-  // createBookingHandler,
   getBookingDetailsHandler,
   validateQRCodeHandler,
   getBookingListHandler,

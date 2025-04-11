@@ -1,5 +1,4 @@
 const subscriptionRouter = require('express').Router();
-const express = require('express');
 const {
   validateReceiptHandler,
   subscriptionWebhooksHandler,
@@ -12,11 +11,7 @@ subscriptionRouter.post(
   authentication,
   validateReceiptHandler
 );
-subscriptionRouter.post(
-  '/webhooks',
-  // authentication,
-  subscriptionWebhooksHandler
-);
+subscriptionRouter.post('/webhooks', subscriptionWebhooksHandler);
 subscriptionRouter.get(
   '/subscription-status',
   authentication,
