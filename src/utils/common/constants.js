@@ -13,6 +13,7 @@ module.exports = {
     SUBSCRIPTION: 'Subscription',
     EMAIL: 'Email',
     NOTIFICATION: 'Notification',
+    SUBSCRIPTION_STATUS: 'subscription status',
   },
   CODE: {
     SUCCESS: 1,

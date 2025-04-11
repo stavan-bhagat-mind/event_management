@@ -13,6 +13,7 @@ const {
 const {
   STATUS_INTERNAL_SERVER_ERROR,
   STATUS_SUCCESS,
+  CATEGORY,
 } = require('../../../utils/common/constants');
 const { verifyJWS, verifyLegacyReceipt } = require('../../../helpers/helper');
 const { NOTIFICATION_TYPES } = require('../utils/subscription.constant');
@@ -58,7 +59,6 @@ const validateReceiptHandler = async (req, res) => {
     return errorResponseWithoutData(
       res,
       STATUS_INTERNAL_SERVER_ERROR,
-      // MSG_INTERNAL_SERVER_ERROR
       error.message
     );
   }
@@ -81,7 +81,7 @@ const getSubscriptionStatusHandler = async (req, res) => {
         res,
         { hasActiveSubscription: false },
         STATUS_SUCCESS,
-        COMMON_MSG.FETCHED_SUCCESS.replace('##', 'subscription status')
+        COMMON_MSG.FETCHED_SUCCESS.replace('##', CATEGORY.SUBSCRIPTION_STATUS)
       );
     }
 
@@ -93,7 +93,7 @@ const getSubscriptionStatusHandler = async (req, res) => {
         expiresDate: subscription.expiresDate,
       },
       STATUS_SUCCESS,
-      COMMON_MSG.FETCHED_SUCCESS.replace('##', 'subscription status')
+      COMMON_MSG.FETCHED_SUCCESS.replace('##', CATEGORY.SUBSCRIPTION_STATUS)
     );
   } catch (error) {
     console.error(`getSubscriptionStatusHandler error: ${error.message}`);
@@ -109,9 +109,7 @@ const getSubscriptionStatusHandler = async (req, res) => {
 const subscriptionWebhooksHandler = async (req, res) => {
   try {
     console.log('Received App Store notification');
-    // Get the signed payload (JWS) from the request body
     const signedPayload = req.body.signedPayload;
-
     if (!signedPayload) {
       console.error('No signedPayload in request body');
       return res.status(400).json({ error: 'Missing signedPayload' });
@@ -121,7 +119,6 @@ const subscriptionWebhooksHandler = async (req, res) => {
       // Verify and decode the JWS
       const decodedPayload = await verifyAndDecodeSignature(signedPayload);
 
-      // Process the notification based on its type
       await processNotification(decodedPayload);
 
       // 200 OK to acknowledge receipt

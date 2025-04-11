@@ -317,9 +317,6 @@ const handleSuccessfulPayment = async (paymentIntent) => {
       { session }
     );
 
-    // 4. Generate QR code
-    // const qrCode = await generateQRCode(`${bookingId}-${Date.now()}`);
-
     // 4. Create a simple URL for the QR code
     const verificationUrl = `${process.env.BASEURL}/event-management/booking/validate-qr/${bookingId}`;
 
@@ -440,7 +437,7 @@ const handleFailedPayment = async (paymentIntent) => {
 //   }
 // }
 
-// test-----------------
+// -------------for testing only -----------------
 async function confirmPaymentHandler(req, res) {
   try {
     const paymentIntentId = req.body.paymentIntentId;
@@ -460,12 +457,6 @@ async function confirmPaymentHandler(req, res) {
     console.error('Error confirming payment intent:', error);
   }
 }
-
-// Example usage
-// (async () => {
-//   const paymentIntentId = await createPaymentIntent();
-//   await confirmPaymentHandler(paymentIntentId);
-// })();
 
 module.exports = {
   paymentIntentCreationHandler,
