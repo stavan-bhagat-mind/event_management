@@ -1,4 +1,4 @@
-<!-- subscription.template.ejs -->
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -27,7 +27,7 @@
       padding: 20px 0;
     }
     .logo {
-      max-width: 150px;
+      max-width: 80px;
       height: auto;
     }
     .icon-container {
@@ -89,12 +89,20 @@
       background-color: #2980b9;
     }
     .footer {
-      text-align: center;
       margin-top: 30px;
       padding-top: 20px;
       border-top: 1px solid #eee;
       color: #777;
       font-size: 12px;
+      position: relative;
+    }
+    .footer-content {
+      text-align: center;
+    }
+    .footer-logo {
+      position: absolute;
+      right: 0;
+      bottom: 0;
     }
     .help-text {
       margin-top: 15px;
@@ -114,8 +122,8 @@
 </head>
 <body>
   <div class="container">
+
     <div class="header">
-      <img src="<%= logo %>" alt="<%= appName %>" class="logo">
     </div>
     
     <div class="icon-container">
@@ -156,16 +164,16 @@
       
       <!-- Subscription details -->
       <div class="subscription-details">
-          <!-- User information section -->
-  <div class="detail-row">
-    <span class="detail-label">Account:</span>
-    <span><%= user.firstName %> <%= user.lastName %></span>
-  </div>
-  <div class="detail-row">
-    <span class="detail-label">Email:</span>
-    <span><%= user.email %></span>
-  </div>
-  
+        <!-- User information section -->
+        <div class="detail-row">
+          <span class="detail-label">Account:</span>
+          <span><%= user.firstName %> <%= user.lastName %></span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Email:</span>
+          <span><%= user.email %></span>
+        </div>
+        
         <div class="detail-row">
           <span class="detail-label">Subscription:</span>
           <span><%= subscription.productId || 'Premium Plan' %></span>
@@ -188,19 +196,23 @@
         <% } %>
       </div>
       
-  
       <div class="help-text">
         <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
       </div>
     </div>
     
     <div class="footer">
-      <p>&copy; <%= new Date().getFullYear() %> <%= appName %>. All rights reserved.</p>
-      <p>
-        <a href="<%= supportUrl %>">Help & Support</a> |
-        <a href="https://www.apple.com/in/legal/privacy/en-ww/">Privacy Policy</a> |
-        <a href="https://www.apple.com/uk/legal/internet-services/itunes/uk/terms.html">Terms of Service</a>
-      </p>
+      <div class="footer-content">
+        <p>&copy; <%= new Date().getFullYear() %> <%= appName %>. All rights reserved.</p>
+        <p>
+          <a href="<%= supportUrl %>">Help & Support</a> |
+          <a href="https://www.apple.com/in/legal/privacy/en-ww/">Privacy Policy</a> |
+          <a href="https://www.apple.com/uk/legal/internet-services/itunes/uk/terms.html">Terms of Service</a>
+        </p>
+      </div>
+      <div class="footer-logo">
+        <img src="<%= logo %>" alt="<%= appName %>" class="logo">
+      </div>
     </div>
   </div>
 </body>
