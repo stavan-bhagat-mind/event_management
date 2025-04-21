@@ -1,20 +1,30 @@
 const cron = require('node-cron');
-cron.schedule('*/7 * * * *', async () => {
-  try {
-    const PING_INTERVAL = 13 * 60 * 1000; // 13 minutes in milliseconds
-    const serviceUrl =
-      process.env.SERVICE_URL || 'https://event-management-p7iv.onrender.com';
+const axios = require('axios');
+require('dotenv').config();
 
-    setInterval(async () => {
-      try {
-        console.log('Pinging self to prevent sleep...');
-        await axios.get(`${serviceUrl}/home`);
-        console.log('Self-ping successful');
-      } catch (err) {
-        console.error('Self-ping failed:', err.message);
-      }
-    }, PING_INTERVAL);
+const serviceUrl =
+  process.env.SERVICE_URL || 'https://event-management-p7iv.onrender.com';
+
+// Schedule pings every 10 minutes
+cron.schedule('*/10 * * * *', async () => {
+  try {
+    console.log(
+      `[${new Date().toISOString()}] Pinging ${serviceUrl}/keep-alive`
+    );
+    const response = await axios.get(`${serviceUrl}/home`);
+    console.log('Keep-alive successful:', response.data);
   } catch (error) {
-    console.error('Error during keep alive cron:', error);
+    console.error('Keep-alive failed:', error.message);
+
+    // Attempt a second try if first fails
+    try {
+      await axios.get(`${serviceUrl}/home`);
+      console.log('Second attempt succeeded');
+    } catch (retryError) {
+      console.error('Retry also failed:', retryError.message);
+      // Consider sending an alert here
+    }
   }
 });
+
+console.log('Keep-alive scheduler started');
