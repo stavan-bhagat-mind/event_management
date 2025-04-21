@@ -64,6 +64,19 @@ const validateReceiptHandler = async (req, res) => {
   }
 };
 
+// validate subscription
+const validateSubscriptionHandler = async (req, res) => {
+  try {
+    console.log('inside validateSubscriptionHandler');
+  } catch (error) {
+    console.error(`validateSubscriptionHandler error: ${error.message}`);
+    return errorResponseWithoutData(
+      res,
+      STATUS_INTERNAL_SERVER_ERROR,
+      MSG_INTERNAL_SERVER_ERROR
+    );
+  }
+};
 // get subscription status
 const getSubscriptionStatusHandler = async (req, res) => {
   try {
@@ -680,6 +693,7 @@ module.exports = {
   validateReceiptHandler,
   subscriptionWebhooksHandler,
   getSubscriptionStatusHandler,
+  validateSubscriptionHandler,
 };
 
 // --------------------------half implemented for certificate verification-----------------
