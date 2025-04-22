@@ -196,7 +196,6 @@ async function verifyLegacyReceipt(receiptData, isSandbox = false, userId) {
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
-    console.log('subscription -------', subscription);
     console.log(
       'status-------',
       ['active', 'trial'].includes(subscription.status)
