@@ -4,7 +4,7 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const mongoose = require('mongoose');
 
 // Run every 7 minutes
-cron.schedule('*/7 * * * *', async () => {
+  cron.schedule('*/7 * * * *', async () => {
   console.log('Starting seat expiration cron job...');
   const session = await mongoose.startSession();
   session.startTransaction();
