@@ -6,10 +6,10 @@ const serviceUrl =
   process.env.SERVICE_URL || 'https://event-management-p7iv.onrender.com';
 
 // Schedule pings every 10 minutes
-cron.schedule('*/10 * * * *', async () => {
+cron.schedule('*/4 * * * *', async () => {
   try {
     console.log(
-      `[${new Date().toISOString()}] Pinging ${serviceUrl}/keep-alive`
+      `[${new Date().toISOString()}] Pinging ${serviceUrl}/home`
     );
     const response = await axios.get(`${serviceUrl}/home`);
     console.log('Keep-alive successful:', response.data);
