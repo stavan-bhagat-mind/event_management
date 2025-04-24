@@ -338,15 +338,15 @@ async function handleRenewalPreferenceChange(data) {
       '_id firstName lastName email'
     );
 
-    await sendPlanChangedEmail(user.email, {
-      user,
-      subscription,
-      additionalInfo: {
-        oldPlan,
-        newPlan: productId,
-        effectiveImmediately: false,
-      },
-    });
+    // await sendPlanChangedEmail(user.email, {
+    //   user,
+    //   subscription,
+    //   additionalInfo: {
+    //     oldPlan,
+    //     newPlan: productId,
+    //     effectiveImmediately: false,
+    //   },
+    // });
 
     console.log(
       `Subscription plan changed: ${originalTransactionId}, new plan: ${productId}`
@@ -387,13 +387,13 @@ async function handleRenewalStatusChange(data) {
       '_id firstName lastName email'
     );
     // send mail
-    await sendRenewalStatusEmail(user.email, {
-      user,
-      subscription,
-      additionalInfo: {
-        autoRenew: true,
-      },
-    });
+    // await sendRenewalStatusEmail(user.email, {
+    //   user,
+    //   subscription,
+    //   additionalInfo: {
+    //     autoRenew: true,
+    //   },
+    // });
 
     console.log(
       `Subscription auto-renewal status updated: ${originalTransactionId}, status: ${autoRenewStatus}`
@@ -443,10 +443,10 @@ async function handleGracePeriodExpiration(data) {
 
     if (user) {
       // Send grace period expired email
-      await sendGracePeriodExpiredEmail(user.email, {
-        user,
-        subscription,
-      });
+    //   await sendGracePeriodExpiredEmail(user.email, {
+    //     user,
+    //     subscription,
+    //   });
     }
     console.log(
       `Grace period expired for subscription: ${originalTransactionId}`
